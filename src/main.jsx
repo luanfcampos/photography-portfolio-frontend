@@ -3,10 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
-
-// Importar os componentes principais
-import Login from './components/ui/Login.jsx'
-import AdminPanel from './components/ui/AdminPanel.jsx'
+import Login from './components/Login.jsx'
+import AdminPanel from './components/AdminPanel.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
