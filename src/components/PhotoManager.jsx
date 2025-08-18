@@ -20,24 +20,23 @@ function PhotoManager({ refreshTrigger }) {
   ])
  
 
-  const loadPhotos = async () => {
-    try {
-      const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const photosData = await response.json()
-        setPhotos(photosData)
-      }
-    } catch (error) {
-      console.error('Erro ao carregar fotos:', error)
-    } finally {
-      setLoading(false)
+ const loadPhotos = async () => {
+  try {
+    const token = localStorage.getItem('adminToken')
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (response.ok) {
+      const photosData = await response.json()
+      // photosData agora já tem { url: "https://res.cloudinary.com/..." }
+      setPhotos(photosData)
     }
+  } catch (error) {
+    console.error('Erro ao carregar fotos:', error)
+  } finally {
+    setLoading(false)
   }
+}
 
   useEffect(() => {
     loadPhotos()

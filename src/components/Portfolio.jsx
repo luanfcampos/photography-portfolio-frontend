@@ -15,18 +15,23 @@ function Portfolio() {
   useEffect(() => {
     const loadPhotos = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`)
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`);
         if (response.ok) {
-          const photosData = await response.json()
-          setPhotos(photosData)
-          
+          const photosData = await response.json();
+
+          // Cada photo deve ter { id, title, url, category_slug }
+          setPhotos(photosData);
+
           // Extrair categorias únicas
-          const uniqueCategories = [...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))]
-          setCategories(uniqueCategories)
+          const uniqueCategories = [
+            ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
+          ];
+          setCategories(uniqueCategories);
         }
       } catch (error) {
-        console.error('Erro ao carregar fotos:', error)
-        // Fallback para fotos estáticas se a API não estiver disponível
+        console.error('Erro ao carregar fotos:', error);
+
+        // Fallback para fotos locais caso a API falhe
         setPhotos([
           {
             id: 1,
@@ -58,15 +63,16 @@ function Portfolio() {
             url: '/src/assets/landscape2.jpg',
             category_slug: 'eventos'
           }
-        ])
-        setCategories(['retratos', 'eventos'])
+        ]);
+        setCategories(['retratos', 'eventos']);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadPhotos()
-  }, [])
+    loadPhotos();
+  }, []);
+
 
   // Filtrar fotos baseado no filtro ativo
   const filteredPhotos = activeFilter === 'todos' 
