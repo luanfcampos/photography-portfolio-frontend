@@ -16,8 +16,8 @@ createRoot(document.getElementById('root')).render(
         <Route path="/" element={<App />} />
 
         {/* Rotas do admin */}
-        <Route path="/admin" element={<Login />} />
-        <Route path="/admin/panel" element={<AdminPanel />} />
+        <Route path="/admin/login" element={<Login />} />
+        <Route path="/admin" element={<AdminPanel />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
