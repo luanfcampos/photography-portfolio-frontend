@@ -18,12 +18,12 @@ function PhotoManager({ refreshTrigger }) {
     { id: 2, name: 'eventos' },
     { id: 3, name: 'Eventos' }
   ])
-  const API_BASE = import.meta.env.VITE_API_URL;
+ 
 
   const loadPhotos = async () => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${API_BASE}/photos`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -48,7 +48,7 @@ function PhotoManager({ refreshTrigger }) {
 
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${API_BASE}/photos/${photoId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/photos/${photoId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -69,7 +69,7 @@ function PhotoManager({ refreshTrigger }) {
   const handleUpdate = async (photoData) => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${API_BASE}/photos/${photoData.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/photos/${photoData.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
