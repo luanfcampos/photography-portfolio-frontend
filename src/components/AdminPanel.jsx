@@ -1,0 +1,179 @@
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
+import { Camera, LogOut, Home, Upload, Images, BarChart3 } from 'lucide-react'
+import PhotoUpload from './PhotoUpload'
+import PhotoManager from './PhotoManager'
+
+function AdminPanel() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    // Verificar se o usuário está autenticado
+    const token = localStorage.getItem('adminToken')
+    if (token) {
+      setIsAuthenticated(true)
+    } else {
+      navigate('/admin/login')
+    }
+  }, [navigate])
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken')
+    navigate('/admin/login')
+  }
+
+  const handleUploadSuccess = () => {
+    // Trigger refresh da lista de fotos
+    setRefreshTrigger(prev => prev + 1)
+  }
+
+  if (!isAuthenticated) {
+    return <div>Carregando...</div>
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header do Admin */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <Camera className="h-8 w-8 text-black" />
+              <span className="text-xl font-bold text-black">Painel Administrativo</span>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/')}
+                className="flex items-center space-x-2"
+              >
+                <Home className="h-4 w-4" />
+                <span>Ver Portfólio</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="flex items-center space-x-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sair</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Conteúdo do Admin */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <Routes>
+          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/dashboard" element={
+            <Dashboard 
+              onUploadSuccess={handleUploadSuccess}
+              refreshTrigger={refreshTrigger}
+            />
+          } />
+        </Routes>
+      </main>
+    </div>
+  )
+}
+
+// Componente Dashboard atualizado
+function Dashboard({ onUploadSuccess, refreshTrigger }) {
+  const [stats, setStats] = useState({
+    totalPhotos: 0,
+    featuredPhotos: 0,
+    categories: 0
+  })
+
+  useEffect(() => {
+    // Carregar estatísticas
+    const loadStats = async () => {
+      try {
+        const response = await fetch('https://photography-api-e6oq.onrender.com/api/photos')
+        if (response.ok) {
+          const photos = await response.json()
+          setStats({
+            totalPhotos: photos.length,
+            featuredPhotos: photos.filter(p => p.is_featured).length,
+            categories: new Set(photos.map(p => p.category_name).filter(Boolean)).size
+          })
+        }
+      } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error)
+      }
+    }
+
+    loadStats()
+  }, [refreshTrigger])
+
+  return (
+    <div className="px-4 py-6 sm:px-0 space-y-6">
+      {/* Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Fotos</CardTitle>
+            <Images className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalPhotos}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Fotos em Destaque</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.featuredPhotos}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Categorias</CardTitle>
+            <Camera className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.categories}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs principais */}
+      <Tabs defaultValue="upload" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="upload" className="flex items-center space-x-2">
+            <Upload className="h-4 w-4" />
+            <span>Upload de Fotos</span>
+          </TabsTrigger>
+          <TabsTrigger value="manage" className="flex items-center space-x-2">
+            <Images className="h-4 w-4" />
+            <span>Gerenciar Fotos</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="upload">
+          <PhotoUpload onUploadSuccess={onUploadSuccess} />
+        </TabsContent>
+
+        <TabsContent value="manage">
+          <PhotoManager refreshTrigger={refreshTrigger} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+export default AdminPanel
+
