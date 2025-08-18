@@ -362,7 +362,7 @@ function Portfolio() {
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <Mail className="h-5 w-5 text-gray-600" />
-                  <span className="text-gray-700">contato@seunome.com</span>
+                  <span className="text-gray-700">lfcampos.photos@gmail.com</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Camera className="h-5 w-5 text-gray-600" />
@@ -396,7 +396,7 @@ function Portfolio() {
                     type="text"
                     id="name"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                    placeholder="Luan Ferreira"
+                    placeholder="Seu Nome"
                   />
                 </div>
                 <div>
