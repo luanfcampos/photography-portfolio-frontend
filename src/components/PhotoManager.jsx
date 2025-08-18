@@ -18,11 +18,16 @@ function PhotoManager({ refreshTrigger }) {
     { id: 2, name: 'eventos' },
     { id: 3, name: 'Eventos' }
   ])
+  const API_BASE = import.meta.env.VITE_API_URL;
 
-  // Carregar fotos
   const loadPhotos = async () => {
     try {
-      const response = await fetch('https://photography-api-e6oq.onrender.com/api/photos')
+      const token = localStorage.getItem('adminToken')
+      const response = await fetch(`${API_BASE}/photos`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       if (response.ok) {
         const photosData = await response.json()
         setPhotos(photosData)
@@ -38,15 +43,12 @@ function PhotoManager({ refreshTrigger }) {
     loadPhotos()
   }, [refreshTrigger])
 
-  // Deletar foto
   const handleDelete = async (photoId) => {
-    if (!confirm('Tem certeza que deseja deletar esta foto?')) {
-      return
-    }
+    if (!confirm('Tem certeza que deseja deletar esta foto?')) return
 
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`https://photography-api-e6oq.onrender.com/api/photos/${photoId}`, {
+      const response = await fetch(`${API_BASE}/photos/${photoId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -64,11 +66,10 @@ function PhotoManager({ refreshTrigger }) {
     }
   }
 
-  // Atualizar foto
   const handleUpdate = async (photoData) => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`https://photography-api-e6oq.onrender.com/api/photos/${photoData.id}`, {
+      const response = await fetch(`${API_BASE}/photos/${photoData.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -78,12 +79,7 @@ function PhotoManager({ refreshTrigger }) {
       })
 
       if (response.ok) {
-        // Atualizar lista local
-        setPhotos(photos.map(photo => 
-          photo.id === photoData.id 
-            ? { ...photo, ...photoData }
-            : photo
-        ))
+        setPhotos(photos.map(photo => photo.id === photoData.id ? { ...photo, ...photoData } : photo))
         setEditingPhoto(null)
       } else {
         alert('Erro ao atualizar foto')
@@ -127,11 +123,7 @@ function PhotoManager({ refreshTrigger }) {
             {photos.map((photo) => (
               <div key={photo.id} className="border rounded-lg overflow-hidden">
                 <div className="relative">
-                  <img
-                    src={photo.url}
-                    alt={photo.title}
-                    className="w-full h-48 object-cover"
-                  />
+                  <img src={photo.url} alt={photo.title} className="w-full h-48 object-cover" />
                   {photo.is_featured && (
                     <Badge className="absolute top-2 left-2 bg-yellow-500">
                       <Star className="h-3 w-3 mr-1" />
@@ -139,20 +131,16 @@ function PhotoManager({ refreshTrigger }) {
                     </Badge>
                   )}
                 </div>
-                
+
                 <div className="p-4">
                   <h3 className="font-medium truncate">{photo.title}</h3>
                   {photo.description && (
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                      {photo.description}
-                    </p>
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{photo.description}</p>
                   )}
-                  
+
                   <div className="flex items-center justify-between mt-3">
-                    <Badge variant="outline">
-                      {photo.category_name || 'Sem categoria'}
-                    </Badge>
-                    
+                    <Badge variant="outline">{photo.category_name || 'Sem categoria'}</Badge>
+
                     <div className="flex space-x-1">
                       <Dialog>
                         <DialogTrigger asChild>
@@ -164,11 +152,7 @@ function PhotoManager({ refreshTrigger }) {
                           <DialogHeader>
                             <DialogTitle>{photo.title}</DialogTitle>
                           </DialogHeader>
-                          <img
-                            src={photo.url}
-                            alt={photo.title}
-                            className="w-full max-h-96 object-contain rounded"
-                          />
+                          <img src={photo.url} alt={photo.title} className="w-full max-h-96 object-contain rounded" />
                           {photo.description && (
                             <p className="text-sm text-gray-600">{photo.description}</p>
                           )}
@@ -184,24 +168,13 @@ function PhotoManager({ refreshTrigger }) {
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Editar Foto</DialogTitle>
-                            <DialogDescription>
-                              Atualize as informações da foto
-                            </DialogDescription>
+                            <DialogDescription>Atualize as informações da foto</DialogDescription>
                           </DialogHeader>
-                          <EditPhotoForm
-                            photo={photo}
-                            categories={categories}
-                            onSave={handleUpdate}
-                          />
+                          <EditPhotoForm photo={photo} categories={categories} onSave={handleUpdate} />
                         </DialogContent>
                       </Dialog>
 
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDelete(photo.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
+                      <Button size="sm" variant="outline" onClick={() => handleDelete(photo.id)} className="text-red-600 hover:text-red-700">
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -216,7 +189,6 @@ function PhotoManager({ refreshTrigger }) {
   )
 }
 
-// Componente para editar foto
 function EditPhotoForm({ photo, categories, onSave }) {
   const [title, setTitle] = useState(photo.title)
   const [description, setDescription] = useState(photo.description || '')
@@ -238,21 +210,12 @@ function EditPhotoForm({ photo, categories, onSave }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="edit-title">Título</Label>
-        <Input
-          id="edit-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
+        <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="edit-description">Descrição</Label>
-        <Textarea
-          id="edit-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
+        <Textarea id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
 
       <div className="space-y-2">
@@ -264,31 +227,20 @@ function EditPhotoForm({ photo, categories, onSave }) {
           <SelectContent>
             <SelectItem value="">Sem categoria</SelectItem>
             {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id.toString()}>
-                {category.name}
-              </SelectItem>
+              <SelectItem key={category.id} value={category.id.toString()}>{category.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
       <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="edit-featured"
-          checked={isFeatured}
-          onChange={(e) => setIsFeatured(e.target.checked)}
-          className="rounded"
-        />
+        <input type="checkbox" id="edit-featured" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="rounded" />
         <Label htmlFor="edit-featured">Foto em destaque</Label>
       </div>
 
-      <Button type="submit" className="w-full">
-        Salvar Alterações
-      </Button>
+      <Button type="submit" className="w-full">Salvar Alterações</Button>
     </form>
   )
 }
 
 export default PhotoManager
-

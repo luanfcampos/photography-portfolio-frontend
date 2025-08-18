@@ -11,6 +11,7 @@ function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const navigate = useNavigate()
+  const API_BASE = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     // Verificar se o usuário está autenticado
@@ -98,7 +99,7 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
     // Carregar estatísticas
     const loadStats = async () => {
       try {
-        const response = await fetch('https://photography-api-e6oq.onrender.com/api/photos')
+        const response = await fetch(`${API_BASE}/photos`)
         if (response.ok) {
           const photos = await response.json()
           setStats({

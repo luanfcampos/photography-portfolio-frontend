@@ -21,6 +21,7 @@ function PhotoUpload({ onUploadSuccess }) {
     { id: 2, name: 'eventos' },
     { id: 3, name: 'Eventos' }
   ])
+  const API_BASE = import.meta.env.VITE_API_URL;
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0]
@@ -55,7 +56,7 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('is_featured', isFeatured)
 
       const token = localStorage.getItem('adminToken')
-      const response = await fetch('https://photography-api-e6oq.onrender.com/api/photos/upload', {
+      const response = await fetch(`${API_BASE}/photos/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

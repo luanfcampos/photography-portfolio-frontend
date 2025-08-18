@@ -9,11 +9,13 @@ function Portfolio() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const API_BASE = import.meta.env.VITE_API_URL;
+
   // Carregar fotos da API
   useEffect(() => {
     const loadPhotos = async () => {
       try {
-        const response = await fetch('https://photography-api-e6oq.onrender.com/api/photos')
+        const response = await fetch(`${API_BASE}/photos`)
         if (response.ok) {
           const photosData = await response.json()
           setPhotos(photosData)
