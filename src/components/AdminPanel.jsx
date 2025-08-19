@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
@@ -73,15 +72,10 @@ function AdminPanel() {
 
       {/* Conteúdo do Admin */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <Routes>
-          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/dashboard" element={
-            <Dashboard 
-              onUploadSuccess={handleUploadSuccess}
-              refreshTrigger={refreshTrigger}
-            />
-          } />
-        </Routes>
+        <Dashboard 
+          onUploadSuccess={handleUploadSuccess}
+          refreshTrigger={refreshTrigger}
+        />
       </main>
     </div>
   )
