@@ -54,39 +54,45 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('category_id', categoryId)
       formData.append('is_featured', isFeatured)
 
-      // URL CORRIGIDA - removido /upload
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/api/photos`, {
+      // ✅ CORRIGIDO: URL sem duplicação
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`, {
         method: 'POST',
         body: formData
       })
 
+      // ✅ MELHORADO: Tratamento de erro mais robusto
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
       const result = await response.json()
 
-      if (response.ok) {
-        setUploadStatus({ type: 'success', message: 'Foto enviada com sucesso!' })
-        
-        // Limpar formulário
-        setSelectedFile(null)
-        setPreview(null)
-        setTitle('')
-        setDescription('')
-        setCategoryId('')
-        setIsFeatured(false)
-        
-        // Resetar input de arquivo
-        const fileInput = document.getElementById('photo-upload')
-        if (fileInput) fileInput.value = ''
-        
-        // Callback para atualizar lista de fotos
-        if (onUploadSuccess) {
-          onUploadSuccess(result)
-        }
-      } else {
-        setUploadStatus({ type: 'error', message: result.error || 'Erro ao enviar foto' })
+      setUploadStatus({ type: 'success', message: 'Foto enviada com sucesso!' })
+      
+      // Limpar formulário
+      setSelectedFile(null)
+      setPreview(null)
+      setTitle('')
+      setDescription('')
+      setCategoryId('')
+      setIsFeatured(false)
+      
+      // Resetar input de arquivo
+      const fileInput = document.getElementById('photo-upload')
+      if (fileInput) fileInput.value = ''
+      
+      // Callback para atualizar lista de fotos
+      if (onUploadSuccess) {
+        onUploadSuccess(result)
       }
+
     } catch (error) {
       console.error('Erro no upload:', error)
-      setUploadStatus({ type: 'error', message: 'Erro de conexão com o servidor' })
+      setUploadStatus({ 
+        type: 'error', 
+        message: error.message || 'Erro de conexão com o servidor' 
+      })
     } finally {
       setIsUploading(false)
     }
