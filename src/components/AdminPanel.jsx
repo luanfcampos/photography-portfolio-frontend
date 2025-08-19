@@ -94,7 +94,7 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
     // Carregar estatísticas
     const loadStats = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`)
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`)
         if (response.ok) {
           const photos = await response.json()
           setStats({

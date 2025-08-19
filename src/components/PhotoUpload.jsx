@@ -18,10 +18,9 @@ function PhotoUpload({ onUploadSuccess }) {
   const [uploadStatus, setUploadStatus] = useState(null)
   const [categories, setCategories] = useState([
     { id: 1, name: 'Retratos' },
-    { id: 2, name: 'eventos' },
+    { id: 2, name: 'Paisagens' },
     { id: 3, name: 'Eventos' }
   ])
- 
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0]
@@ -55,12 +54,9 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('category_id', categoryId)
       formData.append('is_featured', isFeatured)
 
-      const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/photos/upload`, {
+      // URL CORRIGIDA - removido /upload
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/api/photos`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData
       })
 
@@ -83,7 +79,7 @@ function PhotoUpload({ onUploadSuccess }) {
         
         // Callback para atualizar lista de fotos
         if (onUploadSuccess) {
-          onUploadSuccess(result.photo)
+          onUploadSuccess(result)
         }
       } else {
         setUploadStatus({ type: 'error', message: result.error || 'Erro ao enviar foto' })
@@ -242,4 +238,3 @@ function PhotoUpload({ onUploadSuccess }) {
 }
 
 export default PhotoUpload
-

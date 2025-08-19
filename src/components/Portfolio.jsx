@@ -15,7 +15,7 @@ function Portfolio() {
   useEffect(() => {
     const loadPhotos = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`);
         if (response.ok) {
           const photosData = await response.json();
 

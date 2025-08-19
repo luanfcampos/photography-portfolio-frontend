@@ -23,7 +23,7 @@ function PhotoManager({ refreshTrigger }) {
  const loadPhotos = async () => {
   try {
     const token = localStorage.getItem('adminToken')
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/photos`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (response.ok) {
@@ -47,7 +47,7 @@ function PhotoManager({ refreshTrigger }) {
 
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/photos/${photoId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos/${photoId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -68,7 +68,7 @@ function PhotoManager({ refreshTrigger }) {
   const handleUpdate = async (photoData) => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/photos/${photoData.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos/${photoData.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
