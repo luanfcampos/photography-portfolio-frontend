@@ -39,7 +39,6 @@ function Login() {
     try {
       setConnectionStatus('checking')
       addDebugInfo('🔍 Testando conectividade...')
-      
       const healthUrl = process.env.NODE_ENV === 'production' ? 
         'https://photography-api-e6oq.onrender.com/api/health' : 
         'http://localhost:3001/api/health'
