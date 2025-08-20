@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Camera, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Camera, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 
 function Login() {
   const [username, setUsername] = useState('')
@@ -13,169 +13,238 @@ function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [debugInfo, setDebugInfo] = useState([])
+  const [connectionStatus, setConnectionStatus] = useState('checking') // checking, online, offline
   const navigate = useNavigate()
 
   const addDebugInfo = (message) => {
-    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
+    const timestamp = new Date().toLocaleTimeString()
+    setDebugInfo(prev => [...prev, `${timestamp}: ${message}`])
+    console.log(`[LOGIN DEBUG] ${message}`)
   }
 
-  // ✅ FIX: URL da API para produção
+  // ✅ URL da API corrigida para produção
   const getApiUrl = () => {
-    // Em produção no Render, usar URL relativa ou variável de ambiente
     if (process.env.NODE_ENV === 'production') {
-      // Se for build estático servido pelo mesmo servidor
+      // Em produção, usar URL relativa para evitar problemas de CORS
       return '/api/auth/login'
     }
     
     // Para desenvolvimento local
-    return process.env.REACT_APP_API_URL || '/api/auth/login'
+    return process.env.REACT_APP_API_URL ? 
+      `${process.env.REACT_APP_API_URL}/api/auth/login` : 
+      'http://localhost:3001/api/auth/login'
+  }
+
+  // ✅ Testar conectividade com o servidor
+  const testServerConnection = async () => {
+    try {
+      setConnectionStatus('checking')
+      addDebugInfo('🔍 Testando conectividade...')
+      
+      const healthUrl = process.env.NODE_ENV === 'production' ? 
+        '/api/health' : 
+        'http://localhost:3001/api/health'
+      
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setConnectionStatus('online')
+        addDebugInfo(`✅ Servidor online: ${data.message}`)
+        addDebugInfo(`📊 Status: JWT=${data.jwt_configured}, DB=${data.database_configured}`)
+        return true
+      } else {
+        setConnectionStatus('offline')
+        addDebugInfo(`❌ Servidor retornou ${response.status}`)
+        return false
+      }
+    } catch (error) {
+      setConnectionStatus('offline')
+      addDebugInfo(`❌ Erro de conectividade: ${error.message}`)
+      return false
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
-    setDebugInfo([]) // Limpar debug anterior
+    setDebugInfo([])
 
     try {
       const apiUrl = getApiUrl()
       
-      addDebugInfo('🔄 Iniciando tentativa de login')
-      addDebugInfo(`📡 NODE_ENV: ${process.env.NODE_ENV}`)
-      addDebugInfo(`📡 URL: ${window.location.origin}${apiUrl}`)
-      addDebugInfo(`📡 User-Agent: ${navigator.userAgent.substring(0, 50)}...`)
+      addDebugInfo('🔄 === INÍCIO DO LOGIN ===')
+      addDebugInfo(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`)
+      addDebugInfo(`📡 URL da API: ${apiUrl}`)
+      addDebugInfo(`🌐 Origin: ${window.location.origin}`)
+      addDebugInfo(`👤 Username: ${username}`)
       
+      // ✅ Testar conectividade primeiro
+      const serverOnline = await testServerConnection()
+      if (!serverOnline) {
+        setError('❌ Servidor offline ou inacessível. Tente novamente em alguns segundos.')
+        return
+      }
+
+      addDebugInfo('📤 Enviando requisição de login...')
+      
+      // ✅ Configuração de fetch melhorada para produção
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // ✅ Headers adicionais para produção
           'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({
           username: username.trim(),
           password: password,
         }),
-        // ✅ Configurações importantes para produção
-        credentials: 'same-origin', // Para cookies se necessário
-        mode: 'cors' // Permitir CORS
+        // ✅ Configurações importantes para Render
+        credentials: 'same-origin',
+        mode: 'cors'
       })
 
-      addDebugInfo(`📡 Status: ${response.status} ${response.statusText}`)
-      addDebugInfo(`📡 Content-Type: ${response.headers.get('content-type') || 'null'}`)
-      addDebugInfo(`📡 Content-Length: ${response.headers.get('content-length') || 'null'}`)
+      addDebugInfo(`📊 Status da resposta: ${response.status} ${response.statusText}`)
+      addDebugInfo(`📋 Content-Type: ${response.headers.get('content-type') || 'não definido'}`)
       
-      // ✅ Debug adicional para produção
-      if (response.headers.get('server')) {
-        addDebugInfo(`📡 Server: ${response.headers.get('server')}`)
-      }
-
-      // ✅ Verificar se é erro de CORS
-      if (response.type === 'opaque' || response.type === 'opaqueredirect') {
-        addDebugInfo('❌ Possível erro de CORS detectado')
-        setError('Erro de CORS - verifique configuração do servidor')
-        return
-      }
-
+      // ✅ Verificações específicas para problemas do Render
       if (!response.ok) {
-        addDebugInfo(`❌ Resposta não OK (${response.status})`)
-        
-        let errorMessage = 'Erro desconhecido'
         const responseText = await response.text()
-        addDebugInfo(`📄 Texto da resposta de erro: "${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}"`)
+        addDebugInfo(`📄 Tamanho da resposta de erro: ${responseText.length} chars`)
         
+        // Detectar páginas de erro HTML do Render
+        if (responseText.includes('Application Error') || 
+            responseText.includes('<!DOCTYPE html>') ||
+            responseText.includes('Internal Server Error')) {
+          setError('🚨 Servidor temporariamente indisponível. Aguarde alguns segundos e tente novamente.')
+          addDebugInfo('❌ Detectado erro interno do servidor (HTML)')
+          return
+        }
+
+        // Detectar erro 502/503/504 do Render (cold start ou sobrecarga)
+        if (response.status === 502) {
+          setError('🔄 Servidor iniciando... Aguarde 30 segundos e tente novamente.')
+          addDebugInfo('❌ Erro 502 - Cold start do Render')
+          return
+        }
+
+        if (response.status === 503) {
+          setError('⚠️ Servidor temporariamente sobrecarregado. Tente novamente.')
+          addDebugInfo('❌ Erro 503 - Servidor sobrecarregado')
+          return
+        }
+
+        if (response.status === 504) {
+          setError('⏰ Timeout do servidor. Tente novamente.')
+          addDebugInfo('❌ Erro 504 - Gateway timeout')
+          return
+        }
+
+        // Tentar parsear erro JSON
         try {
           const errorData = JSON.parse(responseText)
-          errorMessage = errorData.error || `Erro ${response.status}`
+          const errorMessage = errorData.error || `Erro ${response.status}`
+          setError(errorMessage)
+          addDebugInfo(`❌ Erro da API: ${errorMessage}`)
         } catch (parseError) {
-          addDebugInfo(`❌ Erro não é JSON: ${parseError.message}`)
-          
-          // ✅ Tratamento específico para erros comuns do Render
-          if (response.status === 502) {
-            errorMessage = 'Servidor temporariamente indisponível (502 Bad Gateway)'
-          } else if (response.status === 503) {
-            errorMessage = 'Servidor sobrecarregado (503 Service Unavailable)'
-          } else if (response.status === 504) {
-            errorMessage = 'Timeout do servidor (504 Gateway Timeout)'
-          } else if (responseText.includes('<!DOCTYPE html>')) {
-            errorMessage = 'Servidor retornou página HTML - possível erro 500 não tratado'
-          } else {
-            errorMessage = `Erro ${response.status}: ${response.statusText}`
-          }
+          setError(`❌ Erro ${response.status}: ${response.statusText}`)
+          addDebugInfo(`❌ Resposta não é JSON válido`)
+          addDebugInfo(`📄 Conteúdo: ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`)
         }
-        
-        setError(errorMessage)
         return
       }
 
-      // Para resposta 200, vamos primeiro ler como texto para ver o que tem
+      // ✅ Processar resposta de sucesso
       const responseText = await response.text()
-      addDebugInfo(`📄 Resposta bruta (${responseText.length} chars): "${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}"`)
+      addDebugInfo(`📄 Tamanho da resposta: ${responseText.length} chars`)
       
-      if (!responseText || responseText.trim() === '') {
-        addDebugInfo('❌ Resposta está vazia!')
-        setError('Servidor retornou resposta vazia (possível erro interno)')
+      if (!responseText.trim()) {
+        setError('❌ Servidor retornou resposta vazia')
+        addDebugInfo('❌ Resposta vazia do servidor')
         return
       }
 
-      // Tentar fazer parse do JSON
       let data
       try {
         data = JSON.parse(responseText)
-        addDebugInfo('✅ JSON parse bem-sucedido')
+        addDebugInfo('✅ JSON parseado com sucesso')
       } catch (parseError) {
-        addDebugInfo(`❌ Erro no JSON parse: ${parseError.message}`)
-        addDebugInfo(`📄 Conteúdo que falhou: "${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}"`)
-        
-        // Se começar com HTML, provavelmente é uma página de erro
-        if (responseText.trim().toLowerCase().startsWith('<')) {
-          setError('Servidor retornou HTML ao invés de JSON (possível erro 500 não capturado)')
-        } else {
-          setError('Resposta do servidor não é um JSON válido')
-        }
+        setError('❌ Resposta do servidor não é um JSON válido')
+        addDebugInfo(`❌ Erro no parse JSON: ${parseError.message}`)
+        addDebugInfo(`📄 Conteúdo: ${responseText.substring(0, 200)}`)
         return
       }
 
-      addDebugInfo(`✅ Dados recebidos: ${JSON.stringify(data, null, 2)}`)
+      addDebugInfo(`📊 Dados recebidos: success=${data.success}, token=${!!data.token}`)
 
       if (data.success && data.token) {
-        addDebugInfo('✅ Login bem-sucedido!')
-        
-        // ✅ Armazenamento mais seguro em produção
         try {
+          // ✅ Salvar dados de autenticação
           localStorage.setItem('adminToken', data.token)
           
           if (data.user) {
             localStorage.setItem('adminUser', JSON.stringify(data.user))
+            addDebugInfo(`👤 Usuário salvo: ${data.user.username}`)
           }
           
-          addDebugInfo('✅ Token armazenado no localStorage')
+          addDebugInfo('✅ LOGIN BEM-SUCEDIDO!')
+          addDebugInfo('🔄 Redirecionando para dashboard...')
           
-          navigate('/admin/dashboard')
+          // ✅ Redirecionamento com delay para mostrar sucesso
+          setTimeout(() => {
+            navigate('/admin/dashboard')
+          }, 1000)
+          
         } catch (storageError) {
-          addDebugInfo(`❌ Erro ao armazenar no localStorage: ${storageError.message}`)
-          setError('Erro ao armazenar dados de autenticação')
+          addDebugInfo(`❌ Erro ao salvar no localStorage: ${storageError.message}`)
+          setError('❌ Erro ao salvar dados de autenticação')
         }
       } else {
-        addDebugInfo('❌ Login não bem-sucedido')
-        setError(data.error || 'Falha na autenticação')
+        const errorMsg = data.error || 'Falha na autenticação'
+        setError(errorMsg)
+        addDebugInfo(`❌ Login negado: ${errorMsg}`)
       }
 
     } catch (networkError) {
-      addDebugInfo(`❌ Erro de rede: ${networkError.message}`)
-      addDebugInfo(`❌ Tipo do erro: ${networkError.name}`)
-      addDebugInfo(`❌ Stack: ${networkError.stack?.substring(0, 200)}`)
+      addDebugInfo(`❌ === ERRO DE REDE ===`)
+      addDebugInfo(`❌ Tipo: ${networkError.name}`)
+      addDebugInfo(`❌ Mensagem: ${networkError.message}`)
       
-      if (networkError.name === 'TypeError' && networkError.message.includes('fetch')) {
-        setError('Erro de conexão. Servidor pode estar offline ou com problema de CORS.')
+      if (networkError.message.includes('fetch')) {
+        setError('❌ Erro de conexão. Servidor pode estar offline ou reinicializando.')
+        addDebugInfo('❌ Erro de fetch - possível problema de rede ou CORS')
       } else if (networkError.name === 'AbortError') {
-        setError('Requisição cancelada ou timeout.')
+        setError('⏰ Requisição cancelada por timeout.')
+        addDebugInfo('❌ Timeout na requisição')
       } else {
-        setError('Erro inesperado: ' + networkError.message)
+        setError(`❌ Erro inesperado: ${networkError.message}`)
+        addDebugInfo(`❌ Erro não categorizado: ${networkError.name}`)
       }
     } finally {
       setIsLoading(false)
+      addDebugInfo('🔄 === FIM DO LOGIN ===')
+    }
+  }
+
+  // ✅ Limpar debug ao digitar
+  const handleUsernameChange = (e) => {
+    setUsername(e.target.value)
+    if (error) {
+      setError('')
+      setDebugInfo([])
+    }
+  }
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value)
+    if (error) {
+      setError('')
+      setDebugInfo([])
     }
   }
 
@@ -194,9 +263,33 @@ function Login() {
           <p className="mt-2 text-sm text-gray-300">
             Faça login para gerenciar seu portfólio
           </p>
-          {/* ✅ Info de ambiente em produção */}
-          <div className="mt-2 text-xs text-gray-400">
-            Env: {process.env.NODE_ENV || 'development'} | URL: {window.location.origin}
+          
+          {/* ✅ Status de conexão */}
+          <div className="mt-2 flex items-center justify-center space-x-2 text-xs">
+            <span className="text-gray-400">
+              Env: {process.env.NODE_ENV || 'development'}
+            </span>
+            <span className="text-gray-500">|</span>
+            <div className="flex items-center space-x-1">
+              {connectionStatus === 'checking' && (
+                <>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  <span className="text-yellow-400">Verificando...</span>
+                </>
+              )}
+              {connectionStatus === 'online' && (
+                <>
+                  <CheckCircle className="w-3 h-3 text-green-400" />
+                  <span className="text-green-400">Online</span>
+                </>
+              )}
+              {connectionStatus === 'offline' && (
+                <>
+                  <AlertCircle className="w-3 h-3 text-red-400" />
+                  <span className="text-red-400">Offline</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -213,7 +306,7 @@ function Login() {
               {error && (
                 <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
                     <span className="text-sm">{error}</span>
                   </div>
                 </div>
@@ -225,11 +318,12 @@ function Login() {
                   id="username"
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={handleUsernameChange}
                   placeholder="Digite seu usuário"
-                  className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500"
+                  className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                   required
                   disabled={isLoading}
+                  autoComplete="username"
                 />
               </div>
 
@@ -240,11 +334,12 @@ function Login() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     placeholder="Digite sua senha"
-                    className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 pr-12"
+                    className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 pr-12"
                     required
                     disabled={isLoading}
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
@@ -257,29 +352,63 @@ function Login() {
                 </div>
               </div>
 
+              {/* ✅ Dicas para produção */}
+              <div className="text-xs text-gray-400 space-y-1">
+                <p>💡 <strong>Padrão:</strong> usuário: <code className="bg-gray-700 px-1 rounded">admin</code>, senha: <code className="bg-gray-700 px-1 rounded">admin123</code></p>
+                {connectionStatus === 'offline' && (
+                  <p className="text-yellow-400">⚠️ Se servidor estiver offline, aguarde ~30s (cold start do Render)</p>
+                )}
+              </div>
+
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold transition-all duration-200"
-                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold transition-all duration-200"
+                disabled={isLoading || connectionStatus === 'offline'}
               >
                 {isLoading ? (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-center space-x-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Entrando...</span>
                   </div>
                 ) : (
-                  'Entrar'
+                  <div className="flex items-center justify-center space-x-2">
+                    <span>Entrar</span>
+                    {connectionStatus === 'online' && <CheckCircle className="w-4 h-4" />}
+                  </div>
                 )}
               </Button>
+
+              {/* ✅ Botão para testar conexão */}
+              {connectionStatus === 'offline' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={testServerConnection}
+                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                  disabled={isLoading}
+                >
+                  🔄 Testar Conexão Novamente
+                </Button>
+              )}
             </form>
 
-            {/* Debug info - SEMPRE VISÍVEL para diagnóstico em produção */}
+            {/* Debug info - Visível em produção para diagnóstico */}
             {debugInfo.length > 0 && (
-              <div className="mt-6 p-3 bg-blue-900/20 border border-blue-500/30 rounded text-xs max-h-60 overflow-y-auto">
-                <p className="text-blue-300 font-mono mb-2">🔍 Debug Log:</p>
-                {debugInfo.map((info, index) => (
-                  <p key={index} className="text-blue-200 font-mono text-xs mb-1 break-all">{info}</p>
-                ))}
+              <div className="mt-6">
+                <details className="group">
+                  <summary className="cursor-pointer text-blue-300 text-sm font-mono mb-2 flex items-center space-x-2">
+                    <span>🔍 Log de Debug ({debugInfo.length} entradas)</span>
+                    <span className="text-xs text-gray-400 group-open:hidden">clique para expandir</span>
+                    <span className="text-xs text-gray-400 hidden group-open:inline">clique para ocultar</span>
+                  </summary>
+                  <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded text-xs max-h-60 overflow-y-auto">
+                    {debugInfo.map((info, index) => (
+                      <p key={index} className="text-blue-200 font-mono text-xs mb-1 break-all">
+                        {info}
+                      </p>
+                    ))}
+                  </div>
+                </details>
               </div>
             )}
           </CardContent>
@@ -289,10 +418,10 @@ function Login() {
         <div className="text-center">
           <button
             onClick={() => navigate('/')}
-            className="text-sm text-gray-400 hover:text-white transition-colors duration-200"
+            className="text-sm text-gray-400 hover:text-white transition-colors duration-200 flex items-center justify-center space-x-1"
             disabled={isLoading}
           >
-            ← Voltar ao Portfólio
+            <span>← Voltar ao Portfólio</span>
           </button>
         </div>
       </div>
