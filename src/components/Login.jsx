@@ -25,8 +25,7 @@ function Login() {
   // ✅ URL da API corrigida para produção
   const getApiUrl = () => {
     if (process.env.NODE_ENV === 'production') {
-      // Em produção, usar URL relativa para evitar problemas de CORS
-      return '/api/auth/login'
+      return 'https://photography-api-e6oq.onrender.com/api/auth/login'
     }
     
     // Para desenvolvimento local
@@ -42,7 +41,7 @@ function Login() {
       addDebugInfo('🔍 Testando conectividade...')
       
       const healthUrl = process.env.NODE_ENV === 'production' ? 
-        '/api/health' : 
+        'https://photography-api-e6oq.onrender.com/api/health' : 
         'http://localhost:3001/api/health'
       
       const response = await fetch(healthUrl, {
