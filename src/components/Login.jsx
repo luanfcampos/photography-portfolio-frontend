@@ -12,17 +12,23 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [debugInfo, setDebugInfo] = useState([])
   const navigate = useNavigate()
+
+  const addDebugInfo = (message) => {
+    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+    setDebugInfo([]) // Limpar debug anterior
 
     try {
-      console.log('🔄 Tentando fazer login...'); // Debug
+      addDebugInfo('🔄 Iniciando tentativa de login')
+      addDebugInfo(`📡 URL: ${window.location.origin}/api/auth/login`)
       
-      // 🔧 CORREÇÃO: URL corrigida para bater com o backend
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -34,64 +40,79 @@ function Login() {
         }),
       })
 
-      console.log('📡 Status da resposta:', response.status); // Debug
-      console.log('📡 Headers:', response.headers.get('content-type')); // Debug
+      addDebugInfo(`📡 Status: ${response.status} ${response.statusText}`)
+      addDebugInfo(`📡 Content-Type: ${response.headers.get('content-type') || 'null'}`)
+      addDebugInfo(`📡 Content-Length: ${response.headers.get('content-length') || 'null'}`)
 
-      // 🔧 MELHORIA: Tratamento mais robusto de erros
       if (!response.ok) {
+        addDebugInfo(`❌ Resposta não OK (${response.status})`)
+        
         let errorMessage = 'Erro desconhecido'
+        const responseText = await response.text()
+        addDebugInfo(`📄 Texto da resposta de erro: "${responseText}"`)
         
         try {
-          const errorData = await response.json()
+          const errorData = JSON.parse(responseText)
           errorMessage = errorData.error || `Erro ${response.status}`
         } catch (parseError) {
-          // Se não conseguir fazer parse do JSON, usar mensagem genérica
+          addDebugInfo(`❌ Erro não é JSON: ${parseError.message}`)
           errorMessage = `Erro ${response.status}: ${response.statusText}`
         }
         
-        console.error('❌ Erro da API:', errorMessage) // Debug
         setError(errorMessage)
         return
       }
 
-      // Tentar ler resposta como JSON
-      let data
-      try {
-        data = await response.json()
-      } catch (parseError) {
-        console.error('❌ Erro ao fazer parse JSON:', parseError); // Debug
-        setError('Resposta do servidor não é um JSON válido')
+      // Para resposta 200, vamos primeiro ler como texto para ver o que tem
+      const responseText = await response.text()
+      addDebugInfo(`📄 Resposta bruta (${responseText.length} chars): "${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}"`)
+      
+      if (!responseText || responseText.trim() === '') {
+        addDebugInfo('❌ Resposta está vazia!')
+        setError('Servidor retornou resposta vazia (possível erro interno)')
         return
       }
 
-      console.log('✅ Dados recebidos:', data); // Debug
-
-      // 🔧 CORREÇÃO: Verificação mais robusta do sucesso
-      if (data.success && data.token) {
-        console.log('✅ Login bem-sucedido!'); // Debug
+      // Tentar fazer parse do JSON
+      let data
+      try {
+        data = JSON.parse(responseText)
+        addDebugInfo('✅ JSON parse bem-sucedido')
+      } catch (parseError) {
+        addDebugInfo(`❌ Erro no JSON parse: ${parseError.message}`)
+        addDebugInfo(`📄 Conteúdo que falhou: "${responseText}"`)
         
-        // Salvar token
+        // Se começar com HTML, provavelmente é uma página de erro
+        if (responseText.trim().toLowerCase().startsWith('<')) {
+          setError('Servidor retornou HTML ao invés de JSON (possível erro 500 não capturado)')
+        } else {
+          setError('Resposta do servidor não é um JSON válido')
+        }
+        return
+      }
+
+      addDebugInfo(`✅ Dados recebidos: ${JSON.stringify(data)}`)
+
+      if (data.success && data.token) {
+        addDebugInfo('✅ Login bem-sucedido!')
+        
         localStorage.setItem('adminToken', data.token)
         
-        // Salvar dados do usuário se existirem
         if (data.user) {
           localStorage.setItem('adminUser', JSON.stringify(data.user))
         }
         
-        // Redirecionar
         navigate('/admin/dashboard')
       } else {
+        addDebugInfo('❌ Login não bem-sucedido')
         setError(data.error || 'Falha na autenticação')
       }
 
     } catch (networkError) {
-      console.error('❌ Erro de rede/conexão:', networkError); // Debug
+      addDebugInfo(`❌ Erro de rede: ${networkError.message}`)
       
-      // 🔧 MELHORIA: Mensagens de erro mais específicas
       if (networkError.name === 'TypeError' && networkError.message.includes('fetch')) {
-        setError('Erro de conexão. Verifique se o servidor está rodando.')
-      } else if (networkError.message.includes('JSON')) {
-        setError('Resposta inválida do servidor')
+        setError('Erro de conexão. Servidor pode estar offline.')
       } else {
         setError('Erro inesperado: ' + networkError.message)
       }
@@ -190,14 +211,13 @@ function Login() {
               </Button>
             </form>
 
-            {/* Debug info em desenvolvimento */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded text-xs">
-                <p className="text-yellow-300 font-mono">🐛 Debug Info:</p>
-                <p className="text-yellow-200">URL: {window.location.origin}/api/auth/login</p>
-                <p className="text-yellow-200">Check Network tab for request details</p>
-                <p className="text-yellow-200">Username: {username || '(vazio)'}</p>
-                <p className="text-yellow-200">Password: {password ? '***' : '(vazio)'}</p>
+            {/* Debug info - SEMPRE VISÍVEL para diagnóstico em produção */}
+            {debugInfo.length > 0 && (
+              <div className="mt-6 p-3 bg-blue-900/20 border border-blue-500/30 rounded text-xs max-h-60 overflow-y-auto">
+                <p className="text-blue-300 font-mono mb-2">🔍 Debug Log:</p>
+                {debugInfo.map((info, index) => (
+                  <p key={index} className="text-blue-200 font-mono text-xs mb-1">{info}</p>
+                ))}
               </div>
             )}
           </CardContent>
