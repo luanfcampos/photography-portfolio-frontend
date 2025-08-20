@@ -55,8 +55,12 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('is_featured', isFeatured)
 
       // ✅ CORRIGIDO: URL sem duplicação
+      const token = localStorage.getItem("adminToken")
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`, {
-        method: 'POST',
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData
       })
 
