@@ -23,7 +23,7 @@ function Login() {
       console.log('🔄 Tentando fazer login...'); // Debug
       
       // Chamada para a API
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -205,7 +205,7 @@ function Login() {
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded text-xs">
                 <p className="text-yellow-300 font-mono">🐛 Debug Info:</p>
-                <p className="text-yellow-200">URL: {window.location.origin}/api/auth/login</p>
+                <p className="text-yellow-200">URL: {window.location.origin}/api/auth</p>
                 <p className="text-yellow-200">Check Network tab for request details</p>
               </div>
             )}
