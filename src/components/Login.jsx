@@ -14,81 +14,102 @@ function Login() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  // Função para fazer login na API
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
 
     try {
-      // Chamada real para sua API
+      console.log('🔄 Tentando fazer login...'); // Debug
+      
+      // Chamada para a API
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username,
-          password,
+          username: username.trim(),
+          password: password,
         }),
       })
 
-      const data = await response.json()
+      console.log('📡 Status da resposta:', response.status); // Debug
+      console.log('📡 Headers:', response.headers.get('content-type')); // Debug
 
-      if (response.ok && data.success) {
-        // Login bem-sucedido
+      // Verificar se a resposta é válida
+      if (!response.ok) {
+        // Se não for 2xx, tentar ler como texto primeiro
+        const errorText = await response.text()
+        console.error('❌ Erro da API:', errorText) // Debug
         
-        // Salvar token JWT no localStorage
+        // Tentar fazer parse do JSON se possível
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          // Se não for JSON válido, usar texto como erro
+          setError(`Erro do servidor (${response.status}): ${errorText || 'Resposta inválida'}`)
+          return
+        }
+        
+        setError(errorData.error || `Erro ${response.status}`)
+        return
+      }
+
+      // Tentar ler resposta como texto primeiro para debug
+      const responseText = await response.text()
+      console.log('📄 Resposta bruta:', responseText); // Debug
+
+      // Verificar se não está vazio
+      if (!responseText || responseText.trim() === '') {
+        setError('Servidor retornou resposta vazia')
+        return
+      }
+
+      // Tentar fazer parse do JSON
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('❌ Erro ao fazer parse JSON:', parseError); // Debug
+        console.error('📄 Conteúdo que falhou:', responseText); // Debug
+        setError('Resposta do servidor não é um JSON válido')
+        return
+      }
+
+      console.log('✅ Dados recebidos:', data); // Debug
+
+      // Verificar se o login foi bem-sucedido
+      if (data.success && data.token) {
+        console.log('✅ Login bem-sucedido!'); // Debug
+        
+        // Salvar token
         localStorage.setItem('adminToken', data.token)
         
-        // Salvar dados do usuário (opcional)
-        localStorage.setItem('adminUser', JSON.stringify(data.user))
+        // Salvar dados do usuário se existirem
+        if (data.user) {
+          localStorage.setItem('adminUser', JSON.stringify(data.user))
+        }
         
-        // Redirecionar para o painel
+        // Redirecionar
         navigate('/admin/dashboard')
       } else {
-        // Erro de login - mostrar mensagem específica
-        setError(data.error || 'Credenciais inválidas')
+        setError(data.error || 'Erro desconhecido no login')
       }
-    } catch (err) {
-      console.error('Erro ao fazer login:', err)
-      setError('Erro de conexão. Verifique se o servidor está funcionando.')
+
+    } catch (networkError) {
+      console.error('❌ Erro de rede/conexão:', networkError); // Debug
+      
+      if (networkError.name === 'TypeError' && networkError.message.includes('fetch')) {
+        setError('Erro de conexão. Verifique se o servidor está funcionando.')
+      } else {
+        setError('Erro inesperado: ' + networkError.message)
+      }
     } finally {
       setIsLoading(false)
     }
   }
-
-  // Função para verificar se já está logado
-  const checkExistingLogin = async () => {
-    const token = localStorage.getItem('adminToken')
-    if (token) {
-      try {
-        const response = await fetch('/api/auth/verify', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-        
-        if (response.ok) {
-          // Token válido, redirecionar
-          navigate('/admin/dashboard')
-        } else {
-          // Token inválido, remover
-          localStorage.removeItem('adminToken')
-          localStorage.removeItem('adminUser')
-        }
-      } catch (err) {
-        // Erro na verificação, remover token
-        localStorage.removeItem('adminToken')
-        localStorage.removeItem('adminUser')
-      }
-    }
-  }
-
-  // Verificar login existente ao carregar o componente
-  useState(() => {
-    checkExistingLogin()
-  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -118,10 +139,10 @@ function Login() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded animate-pulse">
+                <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                    <span>{error}</span>
+                    <span className="text-sm">{error}</span>
                   </div>
                 </div>
               )}
@@ -166,7 +187,7 @@ function Login() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold transition-all duration-200 transform hover:scale-[1.02]"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold transition-all duration-200"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -180,26 +201,25 @@ function Login() {
               </Button>
             </form>
 
-            {/* Informações de desenvolvimento */}
+            {/* Debug info em desenvolvimento */}
             {process.env.NODE_ENV === 'development' && (
-              <div className="mt-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded">
-                <p className="text-sm text-blue-300 font-medium mb-2">💡 Desenvolvimento:</p>
-                <p className="text-xs text-blue-200">Verifique se o servidor backend está rodando</p>
-                <p className="text-xs text-blue-200">URL da API: /api/auth/login</p>
+              <div className="mt-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded text-xs">
+                <p className="text-yellow-300 font-mono">🐛 Debug Info:</p>
+                <p className="text-yellow-200">URL: {window.location.origin}/api/auth/login</p>
+                <p className="text-yellow-200">Check Network tab for request details</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Link para voltar ao portfólio */}
+        {/* Link para voltar */}
         <div className="text-center">
           <button
             onClick={() => navigate('/')}
-            className="text-sm text-gray-400 hover:text-white transition-colors duration-200 flex items-center justify-center space-x-1"
+            className="text-sm text-gray-400 hover:text-white transition-colors duration-200"
             disabled={isLoading}
           >
-            <span>←</span>
-            <span>Voltar ao Portfólio</span>
+            ← Voltar ao Portfólio
           </button>
         </div>
       </div>
