@@ -12,15 +12,11 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [debugInfo, setDebugInfo] = useState([])
+
   const [connectionStatus, setConnectionStatus] = useState('checking') // checking, online, offline
   const navigate = useNavigate()
 
-  const addDebugInfo = (message) => {
-    const timestamp = new Date().toLocaleTimeString()
-    setDebugInfo(prev => [...prev, `${timestamp}: ${message}`])
-    console.log(`[LOGIN DEBUG] ${message}`)
-  }
+
 
   // ✅ URL da API corrigida para produção
   const getApiUrl = () => {
@@ -38,7 +34,7 @@ function Login() {
   const testServerConnection = async () => {
     try {
       setConnectionStatus('checking')
-      addDebugInfo('🔍 Testando conectividade...')
+
       const healthUrl = process.env.NODE_ENV === 'production' ? 
         'https://photography-api-e6oq.onrender.com/api/health' : 
         'http://localhost:3001/api/health'
@@ -51,17 +47,16 @@ function Login() {
       if (response.ok) {
         const data = await response.json()
         setConnectionStatus('online')
-        addDebugInfo(`✅ Servidor online: ${data.message}`)
-        addDebugInfo(`📊 Status: JWT=${data.jwt_configured}, DB=${data.database_configured}`)
+
         return true
       } else {
         setConnectionStatus('offline')
-        addDebugInfo(`❌ Servidor retornou ${response.status}`)
+
         return false
       }
     } catch (error) {
       setConnectionStatus('offline')
-      addDebugInfo(`❌ Erro de conectividade: ${error.message}`)
+
       return false
     }
   }
@@ -75,11 +70,7 @@ function Login() {
     try {
       const apiUrl = getApiUrl()
       
-      addDebugInfo('🔄 === INÍCIO DO LOGIN ===')
-      addDebugInfo(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`)
-      addDebugInfo(`📡 URL da API: ${apiUrl}`)
-      addDebugInfo(`🌐 Origin: ${window.location.origin}`)
-      addDebugInfo(`👤 Username: ${username}`)
+
       
       // ✅ Testar conectividade primeiro
       const serverOnline = await testServerConnection()
@@ -88,7 +79,7 @@ function Login() {
         return
       }
 
-      addDebugInfo('📤 Enviando requisição de login...')
+
       
       // ✅ Configuração de fetch melhorada para produção
       const response = await fetch(apiUrl, {
@@ -107,8 +98,7 @@ function Login() {
         mode: 'cors'
       })
 
-      addDebugInfo(`📊 Status da resposta: ${response.status} ${response.statusText}`)
-      addDebugInfo(`📋 Content-Type: ${response.headers.get('content-type') || 'não definido'}`)
+
       
       // ✅ Verificações específicas para problemas do Render
       if (!response.ok) {
@@ -120,26 +110,26 @@ function Login() {
             responseText.includes('<!DOCTYPE html>') ||
             responseText.includes('Internal Server Error')) {
           setError('🚨 Servidor temporariamente indisponível. Aguarde alguns segundos e tente novamente.')
-          addDebugInfo('❌ Detectado erro interno do servidor (HTML)')
+  
           return
         }
 
         // Detectar erro 502/503/504 do Render (cold start ou sobrecarga)
         if (response.status === 502) {
           setError('🔄 Servidor iniciando... Aguarde 30 segundos e tente novamente.')
-          addDebugInfo('❌ Erro 502 - Cold start do Render')
+
           return
         }
 
         if (response.status === 503) {
           setError('⚠️ Servidor temporariamente sobrecarregado. Tente novamente.')
-          addDebugInfo('❌ Erro 503 - Servidor sobrecarregado')
+
           return
         }
 
         if (response.status === 504) {
           setError('⏰ Timeout do servidor. Tente novamente.')
-          addDebugInfo('❌ Erro 504 - Gateway timeout')
+
           return
         }
 
@@ -148,37 +138,35 @@ function Login() {
           const errorData = JSON.parse(responseText)
           const errorMessage = errorData.error || `Erro ${response.status}`
           setError(errorMessage)
-          addDebugInfo(`❌ Erro da API: ${errorMessage}`)
+
         } catch (parseError) {
           setError(`❌ Erro ${response.status}: ${response.statusText}`)
-          addDebugInfo(`❌ Resposta não é JSON válido`)
-          addDebugInfo(`📄 Conteúdo: ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`)
+
         }
         return
       }
 
       // ✅ Processar resposta de sucesso
       const responseText = await response.text()
-      addDebugInfo(`📄 Tamanho da resposta: ${responseText.length} chars`)
+
       
       if (!responseText.trim()) {
         setError('❌ Servidor retornou resposta vazia')
-        addDebugInfo('❌ Resposta vazia do servidor')
+
         return
       }
 
       let data
       try {
         data = JSON.parse(responseText)
-        addDebugInfo('✅ JSON parseado com sucesso')
+
       } catch (parseError) {
         setError('❌ Resposta do servidor não é um JSON válido')
-        addDebugInfo(`❌ Erro no parse JSON: ${parseError.message}`)
-        addDebugInfo(`📄 Conteúdo: ${responseText.substring(0, 200)}`)
+
         return
       }
 
-      addDebugInfo(`📊 Dados recebidos: success=${data.success}, token=${!!data.token}`)
+
 
       if (data.success && data.token) {
         try {
@@ -187,7 +175,7 @@ function Login() {
           
           if (data.user) {
             localStorage.setItem('adminUser', JSON.stringify(data.user))
-            addDebugInfo(`👤 Usuário salvo: ${data.user.username}`)
+
           }
           
           addDebugInfo('✅ LOGIN BEM-SUCEDIDO!')
