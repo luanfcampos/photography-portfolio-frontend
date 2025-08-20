@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -12,249 +12,118 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-
-  const [connectionStatus, setConnectionStatus] = useState('checking') // checking, online, offline
+  const [connectionStatus, setConnectionStatus] = useState('checking') // checking | online | offline
   const navigate = useNavigate()
 
+  const isProd = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD) || process.env.NODE_ENV === 'production'
 
-
-  // ✅ URL da API corrigida para produção
   const getApiUrl = () => {
-    if (process.env.NODE_ENV === 'production') {
-      return 'https://photography-api-e6oq.onrender.com/api/auth/login'
-    }
-    
-    // Para desenvolvimento local
-    return process.env.REACT_APP_API_URL ? 
-      `${process.env.REACT_APP_API_URL}/api/auth/login` : 
-      'http://localhost:3001/api/auth/login'
+    if (isProd) return 'https://photography-api-e6oq.onrender.com/api/auth/login'
+    const base = import.meta?.env?.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:3001'
+    return `${base}/api/auth/login`
   }
 
-  // ✅ Testar conectividade com o servidor
+  const getHealthUrl = () => {
+    if (isProd) return 'https://photography-api-e6oq.onrender.com/api/health'
+    const base = import.meta?.env?.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:3001'
+    return `${base}/api/health`
+  }
+
   const testServerConnection = async () => {
     try {
       setConnectionStatus('checking')
-
-      const healthUrl = process.env.NODE_ENV === 'production' ? 
-        'https://photography-api-e6oq.onrender.com/api/health' : 
-        'http://localhost:3001/api/health'
-      
-      const response = await fetch(healthUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setConnectionStatus('online')
-
-        return true
-      } else {
-        setConnectionStatus('offline')
-
-        return false
-      }
-    } catch (error) {
+      const response = await fetch(getHealthUrl(), { headers: { Accept: 'application/json' } })
+      if (!response.ok) throw new Error('Server not ok')
+      await response.json().catch(() => ({}))
+      setConnectionStatus('online')
+      return true
+    } catch {
       setConnectionStatus('offline')
-
       return false
     }
   }
+
+  useEffect(() => {
+    testServerConnection()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
-    setDebugInfo([])
 
     try {
-      const apiUrl = getApiUrl()
-      
-
-      
-      // ✅ Testar conectividade primeiro
       const serverOnline = await testServerConnection()
       if (!serverOnline) {
-        setError('❌ Servidor offline ou inacessível. Tente novamente em alguns segundos.')
+        setError('Servidor offline. Tente novamente em alguns segundos.')
         return
       }
 
-
-      
-      // ✅ Configuração de fetch melhorada para produção
-      const response = await fetch(apiUrl, {
+      const response = await fetch(getApiUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
+          Accept: 'application/json',
+          'Cache-Control': 'no-cache'
         },
-        body: JSON.stringify({
-          username: username.trim(),
-          password: password,
-        }),
-        // ✅ Configurações importantes para Render
+        body: JSON.stringify({ username: username.trim(), password }),
         credentials: 'same-origin',
         mode: 'cors'
       })
 
-
-      
-      // ✅ Verificações específicas para problemas do Render
       if (!response.ok) {
-        const responseText = await response.text()
-        addDebugInfo(`📄 Tamanho da resposta de erro: ${responseText.length} chars`)
-        
-        // Detectar páginas de erro HTML do Render
-        if (responseText.includes('Application Error') || 
-            responseText.includes('<!DOCTYPE html>') ||
-            responseText.includes('Internal Server Error')) {
-          setError('🚨 Servidor temporariamente indisponível. Aguarde alguns segundos e tente novamente.')
-  
-          return
-        }
-
-        // Detectar erro 502/503/504 do Render (cold start ou sobrecarga)
-        if (response.status === 502) {
-          setError('🔄 Servidor iniciando... Aguarde 30 segundos e tente novamente.')
-
-          return
-        }
-
-        if (response.status === 503) {
-          setError('⚠️ Servidor temporariamente sobrecarregado. Tente novamente.')
-
-          return
-        }
-
-        if (response.status === 504) {
-          setError('⏰ Timeout do servidor. Tente novamente.')
-
-          return
-        }
-
-        // Tentar parsear erro JSON
+        const text = await response.text()
         try {
-          const errorData = JSON.parse(responseText)
-          const errorMessage = errorData.error || `Erro ${response.status}`
-          setError(errorMessage)
-
-        } catch (parseError) {
-          setError(`❌ Erro ${response.status}: ${response.statusText}`)
-
+          const err = JSON.parse(text)
+          setError(err.error || `Erro ${response.status}`)
+        } catch {
+          setError(`Erro ${response.status}: ${response.statusText || 'Falha na autenticação'}`)
         }
         return
       }
 
-      // ✅ Processar resposta de sucesso
-      const responseText = await response.text()
-
-      
-      if (!responseText.trim()) {
-        setError('❌ Servidor retornou resposta vazia')
-
+      const text = await response.text()
+      if (!text.trim()) {
+        setError('Resposta vazia do servidor')
         return
       }
 
       let data
       try {
-        data = JSON.parse(responseText)
-
-      } catch (parseError) {
-        setError('❌ Resposta do servidor não é um JSON válido')
-
+        data = JSON.parse(text)
+      } catch {
+        setError('Resposta do servidor inválida')
         return
       }
 
-
-
-      if (data.success && data.token) {
-        try {
-          // ✅ Salvar dados de autenticação
-          localStorage.setItem('adminToken', data.token)
-          
-          if (data.user) {
-            localStorage.setItem('adminUser', JSON.stringify(data.user))
-
-          }
-          
-          addDebugInfo('✅ LOGIN BEM-SUCEDIDO!')
-          addDebugInfo('🔄 Redirecionando para dashboard...')
-          
-          // ✅ Redirecionamento com delay para mostrar sucesso
-          setTimeout(() => {
-            navigate('/admin/dashboard')
-          }, 1000)
-          
-        } catch (storageError) {
-          addDebugInfo(`❌ Erro ao salvar no localStorage: ${storageError.message}`)
-          setError('❌ Erro ao salvar dados de autenticação')
-        }
+      if (data?.success && data?.token) {
+        localStorage.setItem('adminToken', data.token)
+        if (data.user) localStorage.setItem('adminUser', JSON.stringify(data.user))
+        navigate('/admin/dashboard')
       } else {
-        const errorMsg = data.error || 'Falha na autenticação'
-        setError(errorMsg)
-        addDebugInfo(`❌ Login negado: ${errorMsg}`)
+        setError(data?.error || 'Falha na autenticação')
       }
-
-    } catch (networkError) {
-      addDebugInfo(`❌ === ERRO DE REDE ===`)
-      addDebugInfo(`❌ Tipo: ${networkError.name}`)
-      addDebugInfo(`❌ Mensagem: ${networkError.message}`)
-      
-      if (networkError.message.includes('fetch')) {
-        setError('❌ Erro de conexão. Servidor pode estar offline ou reinicializando.')
-        addDebugInfo('❌ Erro de fetch - possível problema de rede ou CORS')
-      } else if (networkError.name === 'AbortError') {
-        setError('⏰ Requisição cancelada por timeout.')
-        addDebugInfo('❌ Timeout na requisição')
-      } else {
-        setError(`❌ Erro inesperado: ${networkError.message}`)
-        addDebugInfo(`❌ Erro não categorizado: ${networkError.name}`)
-      }
+    } catch (err) {
+      setError('Erro de conexão. Tente novamente.')
     } finally {
       setIsLoading(false)
-      addDebugInfo('🔄 === FIM DO LOGIN ===')
-    }
-  }
-
-  // ✅ Limpar debug ao digitar
-  const handleUsernameChange = (e) => {
-    setUsername(e.target.value)
-    if (error) {
-      setError('')
-      setDebugInfo([])
-    }
-  }
-
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value)
-    if (error) {
-      setError('')
-      setDebugInfo([])
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo/Header */}
         <div className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <Camera className="h-10 w-10 text-white" />
             <span className="text-2xl font-bold text-white">Admin Panel</span>
           </div>
-          <h2 className="text-3xl font-bold text-white">
-            Acesso Administrativo
-          </h2>
-          <p className="mt-2 text-sm text-gray-300">
-            Faça login para gerenciar seu portfólio
-          </p>
-          
-          {/* ✅ Status de conexão */}
+          <h2 className="text-3xl font-bold text-white">Acesso Administrativo</h2>
+          <p className="mt-2 text-sm text-gray-300">Faça login para gerenciar seu portfólio</p>
+
           <div className="mt-2 flex items-center justify-center space-x-2 text-xs">
-            <span className="text-gray-400">
-              Env: {process.env.NODE_ENV || 'development'}
-            </span>
+            <span className="text-gray-400">Env: {isProd ? 'production' : 'development'}</span>
             <span className="text-gray-500">|</span>
             <div className="flex items-center space-x-1">
               {connectionStatus === 'checking' && (
@@ -279,13 +148,10 @@ function Login() {
           </div>
         </div>
 
-        {/* Login Form */}
         <Card className="bg-gray-800/80 backdrop-blur-sm border-gray-700">
           <CardHeader>
             <CardTitle className="text-white">Login</CardTitle>
-            <CardDescription className="text-gray-300">
-              Entre com suas credenciais para acessar o painel
-            </CardDescription>
+            <CardDescription className="text-gray-300">Entre com suas credenciais para acessar o painel</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -304,7 +170,7 @@ function Login() {
                   id="username"
                   type="text"
                   value={username}
-                  onChange={handleUsernameChange}
+                  onChange={(e) => { setUsername(e.target.value); if (error) setError('') }}
                   placeholder="Digite seu usuário"
                   className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                   required
@@ -320,7 +186,7 @@ function Login() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={handlePasswordChange}
+                    onChange={(e) => { setPassword(e.target.value); if (error) setError('') }}
                     placeholder="Digite sua senha"
                     className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 pr-12"
                     required
@@ -336,14 +202,6 @@ function Login() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-              </div>
-
-              {/* ✅ Dicas para produção */}
-              <div className="text-xs text-gray-400 space-y-1">
-                <p>💡 <strong>Padrão:</strong> usuário: <code className="bg-gray-700 px-1 rounded">admin</code>, senha: <code className="bg-gray-700 px-1 rounded">admin123</code></p>
-                {connectionStatus === 'offline' && (
-                  <p className="text-yellow-400">⚠️ Se servidor estiver offline, aguarde ~30s (cold start do Render)</p>
-                )}
               </div>
 
               <Button
@@ -364,7 +222,6 @@ function Login() {
                 )}
               </Button>
 
-              {/* ✅ Botão para testar conexão */}
               {connectionStatus === 'offline' && (
                 <Button
                   type="button"
@@ -377,30 +234,9 @@ function Login() {
                 </Button>
               )}
             </form>
-
-            {/* Debug info - Visível em produção para diagnóstico */}
-            {debugInfo.length > 0 && (
-              <div className="mt-6">
-                <details className="group">
-                  <summary className="cursor-pointer text-blue-300 text-sm font-mono mb-2 flex items-center space-x-2">
-                    <span>🔍 Log de Debug ({debugInfo.length} entradas)</span>
-                    <span className="text-xs text-gray-400 group-open:hidden">clique para expandir</span>
-                    <span className="text-xs text-gray-400 hidden group-open:inline">clique para ocultar</span>
-                  </summary>
-                  <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded text-xs max-h-60 overflow-y-auto">
-                    {debugInfo.map((info, index) => (
-                      <p key={index} className="text-blue-200 font-mono text-xs mb-1 break-all">
-                        {info}
-                      </p>
-                    ))}
-                  </div>
-                </details>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Link para voltar */}
         <div className="text-center">
           <button
             onClick={() => navigate('/')}
