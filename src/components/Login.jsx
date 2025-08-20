@@ -19,6 +19,18 @@ function Login() {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
   }
 
+  // ✅ FIX: URL da API para produção
+  const getApiUrl = () => {
+    // Em produção no Render, usar URL relativa ou variável de ambiente
+    if (process.env.NODE_ENV === 'production') {
+      // Se for build estático servido pelo mesmo servidor
+      return '/api/auth/login'
+    }
+    
+    // Para desenvolvimento local
+    return process.env.REACT_APP_API_URL || '/api/auth/login'
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
@@ -26,37 +38,71 @@ function Login() {
     setDebugInfo([]) // Limpar debug anterior
 
     try {
-      addDebugInfo('🔄 Iniciando tentativa de login')
-      addDebugInfo(`📡 URL: ${window.location.origin}/api/auth/login`)
+      const apiUrl = getApiUrl()
       
-      const response = await fetch('/api/auth/login', {
+      addDebugInfo('🔄 Iniciando tentativa de login')
+      addDebugInfo(`📡 NODE_ENV: ${process.env.NODE_ENV}`)
+      addDebugInfo(`📡 URL: ${window.location.origin}${apiUrl}`)
+      addDebugInfo(`📡 User-Agent: ${navigator.userAgent.substring(0, 50)}...`)
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          // ✅ Headers adicionais para produção
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
           username: username.trim(),
           password: password,
         }),
+        // ✅ Configurações importantes para produção
+        credentials: 'same-origin', // Para cookies se necessário
+        mode: 'cors' // Permitir CORS
       })
 
       addDebugInfo(`📡 Status: ${response.status} ${response.statusText}`)
       addDebugInfo(`📡 Content-Type: ${response.headers.get('content-type') || 'null'}`)
       addDebugInfo(`📡 Content-Length: ${response.headers.get('content-length') || 'null'}`)
+      
+      // ✅ Debug adicional para produção
+      if (response.headers.get('server')) {
+        addDebugInfo(`📡 Server: ${response.headers.get('server')}`)
+      }
+
+      // ✅ Verificar se é erro de CORS
+      if (response.type === 'opaque' || response.type === 'opaqueredirect') {
+        addDebugInfo('❌ Possível erro de CORS detectado')
+        setError('Erro de CORS - verifique configuração do servidor')
+        return
+      }
 
       if (!response.ok) {
         addDebugInfo(`❌ Resposta não OK (${response.status})`)
         
         let errorMessage = 'Erro desconhecido'
         const responseText = await response.text()
-        addDebugInfo(`📄 Texto da resposta de erro: "${responseText}"`)
+        addDebugInfo(`📄 Texto da resposta de erro: "${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}"`)
         
         try {
           const errorData = JSON.parse(responseText)
           errorMessage = errorData.error || `Erro ${response.status}`
         } catch (parseError) {
           addDebugInfo(`❌ Erro não é JSON: ${parseError.message}`)
-          errorMessage = `Erro ${response.status}: ${response.statusText}`
+          
+          // ✅ Tratamento específico para erros comuns do Render
+          if (response.status === 502) {
+            errorMessage = 'Servidor temporariamente indisponível (502 Bad Gateway)'
+          } else if (response.status === 503) {
+            errorMessage = 'Servidor sobrecarregado (503 Service Unavailable)'
+          } else if (response.status === 504) {
+            errorMessage = 'Timeout do servidor (504 Gateway Timeout)'
+          } else if (responseText.includes('<!DOCTYPE html>')) {
+            errorMessage = 'Servidor retornou página HTML - possível erro 500 não tratado'
+          } else {
+            errorMessage = `Erro ${response.status}: ${response.statusText}`
+          }
         }
         
         setError(errorMessage)
@@ -80,7 +126,7 @@ function Login() {
         addDebugInfo('✅ JSON parse bem-sucedido')
       } catch (parseError) {
         addDebugInfo(`❌ Erro no JSON parse: ${parseError.message}`)
-        addDebugInfo(`📄 Conteúdo que falhou: "${responseText}"`)
+        addDebugInfo(`📄 Conteúdo que falhou: "${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}"`)
         
         // Se começar com HTML, provavelmente é uma página de erro
         if (responseText.trim().toLowerCase().startsWith('<')) {
@@ -91,18 +137,26 @@ function Login() {
         return
       }
 
-      addDebugInfo(`✅ Dados recebidos: ${JSON.stringify(data)}`)
+      addDebugInfo(`✅ Dados recebidos: ${JSON.stringify(data, null, 2)}`)
 
       if (data.success && data.token) {
         addDebugInfo('✅ Login bem-sucedido!')
         
-        localStorage.setItem('adminToken', data.token)
-        
-        if (data.user) {
-          localStorage.setItem('adminUser', JSON.stringify(data.user))
+        // ✅ Armazenamento mais seguro em produção
+        try {
+          localStorage.setItem('adminToken', data.token)
+          
+          if (data.user) {
+            localStorage.setItem('adminUser', JSON.stringify(data.user))
+          }
+          
+          addDebugInfo('✅ Token armazenado no localStorage')
+          
+          navigate('/admin/dashboard')
+        } catch (storageError) {
+          addDebugInfo(`❌ Erro ao armazenar no localStorage: ${storageError.message}`)
+          setError('Erro ao armazenar dados de autenticação')
         }
-        
-        navigate('/admin/dashboard')
       } else {
         addDebugInfo('❌ Login não bem-sucedido')
         setError(data.error || 'Falha na autenticação')
@@ -110,9 +164,13 @@ function Login() {
 
     } catch (networkError) {
       addDebugInfo(`❌ Erro de rede: ${networkError.message}`)
+      addDebugInfo(`❌ Tipo do erro: ${networkError.name}`)
+      addDebugInfo(`❌ Stack: ${networkError.stack?.substring(0, 200)}`)
       
       if (networkError.name === 'TypeError' && networkError.message.includes('fetch')) {
-        setError('Erro de conexão. Servidor pode estar offline.')
+        setError('Erro de conexão. Servidor pode estar offline ou com problema de CORS.')
+      } else if (networkError.name === 'AbortError') {
+        setError('Requisição cancelada ou timeout.')
       } else {
         setError('Erro inesperado: ' + networkError.message)
       }
@@ -136,6 +194,10 @@ function Login() {
           <p className="mt-2 text-sm text-gray-300">
             Faça login para gerenciar seu portfólio
           </p>
+          {/* ✅ Info de ambiente em produção */}
+          <div className="mt-2 text-xs text-gray-400">
+            Env: {process.env.NODE_ENV || 'development'} | URL: {window.location.origin}
+          </div>
         </div>
 
         {/* Login Form */}
@@ -216,7 +278,7 @@ function Login() {
               <div className="mt-6 p-3 bg-blue-900/20 border border-blue-500/30 rounded text-xs max-h-60 overflow-y-auto">
                 <p className="text-blue-300 font-mono mb-2">🔍 Debug Log:</p>
                 {debugInfo.map((info, index) => (
-                  <p key={index} className="text-blue-200 font-mono text-xs mb-1">{info}</p>
+                  <p key={index} className="text-blue-200 font-mono text-xs mb-1 break-all">{info}</p>
                 ))}
               </div>
             )}
