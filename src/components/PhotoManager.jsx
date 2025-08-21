@@ -22,7 +22,7 @@ function PhotoManager({ refreshTrigger }) {
   const loadPhotos = async () => {
     try {
       const token = localStorage.getItem('adminToken')
-      const API_URL = import.meta.env.VITE_API_URL || 'https://photography-api-e6oq.onrender.com'
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
       const response = await fetch(`${API_URL}/api/photos`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -46,7 +46,7 @@ function PhotoManager({ refreshTrigger }) {
 
     try {
       const token = localStorage.getItem('adminToken')
-      const API_URL = import.meta.env.VITE_API_URL || 'https://photography-api-e6oq.onrender.com'
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
       const response = await fetch(`${API_URL}/api/photos/${photoId}`, {
         method: 'DELETE',
         headers: {
@@ -68,7 +68,7 @@ function PhotoManager({ refreshTrigger }) {
   const handleUpdate = async (photoData) => {
     try {
       const token = localStorage.getItem('adminToken')
-      const API_URL = import.meta.env.VITE_API_URL || 'https://photography-api-e6oq.onrender.com'
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
       const response = await fetch(`${API_URL}/api/photos/${photoData.id}`, {
         method: 'PUT',
         headers: {
@@ -92,7 +92,7 @@ function PhotoManager({ refreshTrigger }) {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen p-6">
+      <div className="min-h-screen p-6">
         <Card className="w-full bg-gray-800/80 backdrop-blur-sm border-gray-700">
           <CardContent className="p-6">
             <div className="flex items-center justify-center space-x-3 text-white">
@@ -106,7 +106,6 @@ function PhotoManager({ refreshTrigger }) {
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen p-6">
       <Card className="w-full bg-gray-800/80 backdrop-blur-sm border-gray-700">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-white">
@@ -220,7 +219,6 @@ function PhotoManager({ refreshTrigger }) {
           )}
         </CardContent>
       </Card>
-    </div>
   )
 }
 
