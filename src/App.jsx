@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Portfolio from './Portfolio'
-import WorkGallery from './WorkGallery'
-import Login from './Login'
-import AdminPanel from './AdminPanel'
+import Portfolio from './components/Portfolio'
+import WorkGallery from './components/WorkGallery'
+import Login from './components/Login'
+import AdminPanel from './components/AdminPanel'
 
 function App() {
   return (

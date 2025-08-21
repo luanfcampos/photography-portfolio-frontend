@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { Camera, LogOut, Home, Upload, Images, BarChart3, Folder } from 'lucide-react'
+import { Camera, LogOut, Home, Upload, Image, BarChart3, Folder } from 'lucide-react'
 import PhotoUpload from './PhotoUpload'
 import PhotoManager from './PhotoManager'
 import WorkManager from './WorkManager'
@@ -131,7 +131,7 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Fotos</CardTitle>
-            <Images className="h-4 w-4 text-muted-foreground" />
+            <Image className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalPhotos}</div>
@@ -181,7 +181,7 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
             <span>Trabalhos</span>
           </TabsTrigger>
           <TabsTrigger value="manage" className="flex items-center space-x-2">
-            <Images className="h-4 w-4" />
+            <Image className="h-4 w-4" />
             <span>Gerenciar Fotos</span>
           </TabsTrigger>
         </TabsList>

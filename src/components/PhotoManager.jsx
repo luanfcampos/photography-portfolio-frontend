@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Images, Edit, Trash2, Star, Eye } from 'lucide-react'
+import { Image, Edit, Trash2, Star, Eye } from 'lucide-react'
 
 function PhotoManager({ refreshTrigger }) {
   const [photos, setPhotos] = useState([])
@@ -103,7 +103,7 @@ function PhotoManager({ refreshTrigger }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Images className="h-5 w-5" />
+          <Image className="h-5 w-5" />
           <span>Gerenciar Fotos ({photos.length})</span>
         </CardTitle>
         <CardDescription>
@@ -113,7 +113,7 @@ function PhotoManager({ refreshTrigger }) {
       <CardContent>
         {photos.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <Images className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <Image className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <p>Nenhuma foto encontrada</p>
             <p className="text-sm">Faça upload da primeira foto para começar</p>
           </div>
