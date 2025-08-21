@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Camera, Mail, Instagram, Facebook, Twitter, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import WhatsAppFloatingButton from './WhatsAppFloatingButton'
+import aboutImage from '../assets/portrait1.jpg';
 
 function Portfolio() {
   const navigate = useNavigate()
@@ -373,7 +374,7 @@ function Portfolio() {
             </div>
             <div className="relative">
               <img
-                src="/src/assets/portrait1.jpg"
+                src={aboutImage}
                 alt="Sobre o fotógrafo"
                 className="rounded-lg shadow-2xl"
               />
