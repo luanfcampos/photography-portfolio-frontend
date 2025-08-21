@@ -1,76 +1,88 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Camera, Mail, Instagram, Facebook, Twitter, X, ChevronLeft, ChevronRight } from 'lucide-react'
 
 function Portfolio() {
+  const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState('todos')
   const [selectedImage, setSelectedImage] = useState(null)
   const [photos, setPhotos] = useState([])
+  const [works, setWorks] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
 
  
 
-  // Carregar fotos da API
+  // Carregar fotos e trabalhos da API
   useEffect(() => {
-    const loadPhotos = async () => {
+    const loadData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`);
-        if (response.ok) {
-          const photosData = await response.json();
+        // Carregar trabalhos
+        const worksResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/works`);
+        if (worksResponse.ok) {
+          const worksData = await worksResponse.json();
+          setWorks(worksData);
+          
+          // Usar a foto de capa de cada trabalho para a galeria principal
+          const workPhotos = worksData
+            .filter(work => work.cover_photo_url)
+            .map(work => ({
+              id: work.id,
+              title: work.title,
+              url: work.cover_photo_url,
+              category_slug: work.category_slug,
+              work_id: work.id,
+              photo_count: work.photo_count || 0
+            }));
+          
+          setPhotos(workPhotos);
 
-          // Cada photo deve ter { id, title, url, category_slug }
-          setPhotos(photosData);
-
-          // Extrair categorias únicas
+          // Extrair categorias únicas dos trabalhos
           const uniqueCategories = [
-            ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
+            ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
           ];
           setCategories(uniqueCategories);
+        } else {
+          // Fallback: carregar fotos individuais se não houver trabalhos
+          const photosResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`);
+          if (photosResponse.ok) {
+            const photosData = await photosResponse.json();
+            setPhotos(photosData);
+
+            const uniqueCategories = [
+              ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
+            ];
+            setCategories(uniqueCategories);
+          }
         }
       } catch (error) {
-        console.error('Erro ao carregar fotos:', error);
+        console.error('Erro ao carregar dados:', error);
 
-        // Fallback para fotos locais caso a API falhe
+        // Fallback para dados locais caso a API falhe
         setPhotos([
           {
             id: 1,
-            title: 'Retrato Natural',
+            title: 'Ensaio Natural',
             url: '/src/assets/portrait1.jpg',
-            category_slug: 'retratos'
+            category_slug: 'ensaios',
+            work_id: 1
           },
           {
             id: 2,
-            title: 'Expressão Artística',
-            url: '/src/assets/portrait2.jpg',
-            category_slug: 'retratos'
-          },
-          {
-            id: 3,
-            title: 'Beleza Clássica',
-            url: '/src/assets/portrait3.jpg',
-            category_slug: 'retratos'
-          },
-          {
-            id: 4,
-            title: 'Montanha Serena',
+            title: 'Produto Elegante',
             url: '/src/assets/landscape1.jpg',
-            category_slug: 'eventos'
-          },
-          {
-            id: 5,
-            title: 'Vale Dourado',
-            url: '/src/assets/landscape2.jpg',
-            category_slug: 'eventos'
+            category_slug: 'produtos',
+            work_id: 2
           }
         ]);
-        setCategories(['retratos', 'eventos']);
+        setCategories(['ensaios', 'produtos']);
       } finally {
         setLoading(false);
       }
     };
 
-    loadPhotos();
+    loadData();
   }, []);
 
 
@@ -86,8 +98,13 @@ function Portfolio() {
     }
   }
 
-  const openModal = (photo) => {
-    setSelectedImage(photo)
+  const openWorkGallery = (photo) => {
+    if (photo.work_id) {
+      navigate(`/work/${photo.work_id}`)
+    } else {
+      // Fallback para modal se não houver work_id
+      setSelectedImage(photo)
+    }
   }
 
   const closeModal = () => {
@@ -241,7 +258,7 @@ function Portfolio() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.3 }}
                   className="group cursor-pointer"
-                  onClick={() => openModal(photo)}
+                  onClick={() => openWorkGallery(photo)}
                 >
                   <div className="relative overflow-hidden rounded-lg aspect-square">
                     <img
@@ -250,6 +267,19 @@ function Portfolio() {
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
+                    
+                    {/* Indicador de número de fotos */}
+                    {photo.photo_count && photo.photo_count > 1 && (
+                      <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                        {photo.photo_count} fotos
+                      </div>
+                    )}
+                    
+                    {/* Título no hover */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <h3 className="text-white font-medium">{photo.title}</h3>
+                      <p className="text-white/80 text-sm">Clique para ver galeria completa</p>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -318,7 +348,7 @@ function Portfolio() {
               <h2 className="text-4xl font-bold text-gray-900 mb-6">Sobre Mim</h2>
               <p className="text-lg text-gray-600 mb-6">
                 Sou um fotógrafo apaixonado por capturar a essência de cada momento. 
-                Com mais de 5 anos de experiência, especializo-me em retratos e eventos, 
+                Com mais de 5 anos de experiência, especializo-me em ensaios fotográficos e fotografia de produtos, 
                 sempre buscando contar histórias através das minhas lentes.
               </p>
               <p className="text-lg text-gray-600 mb-8">
@@ -329,11 +359,11 @@ function Portfolio() {
               <div className="flex space-x-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-black">500+</div>
-                  <div className="text-sm text-gray-600">Eventos</div>
+                  <div className="text-sm text-gray-600">Fotos</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-black">50+</div>
-                  <div className="text-sm text-gray-600">Eventos</div>
+                  <div className="text-sm text-gray-600">Ensaios</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-black">5+</div>

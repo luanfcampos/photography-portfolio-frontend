@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
@@ -13,14 +13,36 @@ function PhotoUpload({ onUploadSuccess }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [workId, setWorkId] = useState('')
   const [isFeatured, setIsFeatured] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState(null)
   const [categories, setCategories] = useState([
-    { id: 1, name: 'Retratos' },
-    { id: 2, name: 'Paisagens' },
+    { id: 1, name: 'Ensaios' },
+    { id: 2, name: 'Produtos' },
     { id: 3, name: 'Eventos' }
   ])
+  const [works, setWorks] = useState([])
+
+  // Carregar trabalhos disponíveis
+  useEffect(() => {
+    const loadWorks = async () => {
+      try {
+        const token = localStorage.getItem('adminToken')
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/works`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const worksData = await response.json()
+          setWorks(worksData)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar trabalhos:', error)
+      }
+    }
+
+    loadWorks()
+  }, [])
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0]
@@ -52,6 +74,7 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('title', title)
       formData.append('description', description)
       formData.append('category_id', categoryId)
+      formData.append('work_id', workId)
       formData.append('is_featured', isFeatured)
 
       // ✅ CORRIGIDO: URL sem duplicação
@@ -80,6 +103,7 @@ function PhotoUpload({ onUploadSuccess }) {
       setTitle('')
       setDescription('')
       setCategoryId('')
+      setWorkId('')
       setIsFeatured(false)
       
       // Resetar input de arquivo
@@ -194,6 +218,23 @@ function PhotoUpload({ onUploadSuccess }) {
                 placeholder="Descrição da foto (opcional)"
                 disabled={isUploading}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="work">Trabalho (Opcional)</Label>
+              <Select value={workId} onValueChange={setWorkId} disabled={isUploading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um trabalho" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum trabalho</SelectItem>
+                  {works.map((work) => (
+                    <SelectItem key={work.id} value={work.id.toString()}>
+                      {work.title} ({work.category_name})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

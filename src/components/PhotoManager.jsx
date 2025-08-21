@@ -14,8 +14,8 @@ function PhotoManager({ refreshTrigger }) {
   const [loading, setLoading] = useState(true)
   const [editingPhoto, setEditingPhoto] = useState(null)
   const [categories, setCategories] = useState([
-    { id: 1, name: 'Retratos' },
-    { id: 2, name: 'eventos' },
+    { id: 1, name: 'Ensaios' },
+    { id: 2, name: 'Produtos' },
     { id: 3, name: 'Eventos' }
   ])
  
