@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Image, Edit, Trash2, Star, Eye } from 'lucide-react'
+import { Image, Edit, Trash2, Star, Eye, Loader2 } from 'lucide-react'
 
 function PhotoManager({ refreshTrigger }) {
   const [photos, setPhotos] = useState([])
@@ -92,123 +92,135 @@ function PhotoManager({ refreshTrigger }) {
 
   if (loading) {
     return (
-      <Card className="w-full">
-        <CardContent className="p-6">
-          <div className="text-center">Carregando fotos...</div>
-        </CardContent>
-      </Card>
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen p-6">
+        <Card className="w-full bg-gray-800/80 backdrop-blur-sm border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center space-x-3 text-white">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Carregando fotos...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Image className="h-5 w-5" />
-          <span>Gerenciar Fotos ({photos.length})</span>
-        </CardTitle>
-        <CardDescription>
-          Visualize, edite e organize suas fotos
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {photos.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Image className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>Nenhuma foto encontrada</p>
-            <p className="text-sm">Faça upload da primeira foto para começar</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {photos.map((photo) => (
-              <div key={photo.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                <div className="relative">
-                  <img 
-                    src={photo.url} 
-                    alt={photo.title || 'Foto'} 
-                    className="w-full h-48 object-cover"
-                    onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
-                    }}
-                  />
-                  {photo.is_featured && (
-                    <Badge className="absolute top-2 left-2 bg-yellow-500 hover:bg-yellow-600">
-                      <Star className="h-3 w-3 mr-1" />
-                      Destaque
-                    </Badge>
-                  )}
-                </div>
+    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen p-6">
+      <Card className="w-full bg-gray-800/80 backdrop-blur-sm border-gray-700">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2 text-white">
+            <Image className="h-5 w-5" />
+            <span>Gerenciar Fotos ({photos.length})</span>
+          </CardTitle>
+          <CardDescription className="text-gray-300">
+            Visualize, edite e organize suas fotos
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {photos.length === 0 ? (
+            <div className="text-center py-12">
+              <Image className="h-16 w-16 mx-auto mb-4 text-gray-500" />
+              <p className="text-gray-400 text-lg mb-2">Nenhuma foto encontrada</p>
+              <p className="text-gray-500 text-sm">Faça upload da primeira foto para começar</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {photos.map((photo) => (
+                <div key={photo.id} className="bg-gray-700/50 backdrop-blur-sm border border-gray-600 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
+                  <div className="relative overflow-hidden">
+                    <img 
+                      src={photo.url} 
+                      alt={photo.title || 'Foto'} 
+                      className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23374151"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%239CA3AF">Erro</text></svg>'
+                      }}
+                    />
+                    {photo.is_featured && (
+                      <Badge className="absolute top-3 left-3 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold">
+                        <Star className="h-3 w-3 mr-1" />
+                        Destaque
+                      </Badge>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
 
-                <div className="p-4">
-                  <h3 className="font-medium truncate text-gray-900">{photo.title || 'Sem título'}</h3>
-                  {photo.description && (
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{photo.description}</p>
-                  )}
+                  <div className="p-4">
+                    <h3 className="font-semibold text-white truncate mb-1">
+                      {photo.title || 'Sem título'}
+                    </h3>
+                    {photo.description && (
+                      <p className="text-sm text-gray-300 mb-3 line-clamp-2 leading-relaxed">
+                        {photo.description}
+                      </p>
+                    )}
 
-                  <div className="flex items-center justify-between mt-3">
-                    <Badge variant="outline" className="text-xs">
-                      {photo.category_name || 'Sem categoria'}
-                    </Badge>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs border-gray-500 text-gray-300 bg-gray-600/30">
+                        {photo.category_name || 'Sem categoria'}
+                      </Badge>
 
-                    <div className="flex space-x-1">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0">
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>{photo.title || 'Foto'}</DialogTitle>
-                          </DialogHeader>
-                          <div className="flex justify-center">
-                            <img 
-                              src={photo.url} 
-                              alt={photo.title || 'Foto'} 
-                              className="max-w-full max-h-96 object-contain rounded"
-                              onError={(e) => {
-                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23f3f4f6"/><text x="150" y="100" text-anchor="middle" dy=".3em" fill="%236b7280">Erro ao carregar</text></svg>'
-                              }}
-                            />
-                          </div>
-                          {photo.description && (
-                            <p className="text-sm text-gray-600 mt-4">{photo.description}</p>
-                          )}
-                        </DialogContent>
-                      </Dialog>
+                      <div className="flex space-x-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-8 w-8 p-0 border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white">
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl bg-gray-800 border-gray-700">
+                            <DialogHeader>
+                              <DialogTitle className="text-white">{photo.title || 'Foto'}</DialogTitle>
+                            </DialogHeader>
+                            <div className="flex justify-center bg-gray-900 rounded-lg p-4">
+                              <img 
+                                src={photo.url} 
+                                alt={photo.title || 'Foto'} 
+                                className="max-w-full max-h-96 object-contain rounded"
+                                onError={(e) => {
+                                  e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23374151"/><text x="150" y="100" text-anchor="middle" dy=".3em" fill="%239CA3AF">Erro ao carregar</text></svg>'
+                                }}
+                              />
+                            </div>
+                            {photo.description && (
+                              <p className="text-gray-300 mt-4 bg-gray-700/30 p-3 rounded">{photo.description}</p>
+                            )}
+                          </DialogContent>
+                        </Dialog>
 
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0">
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Editar Foto</DialogTitle>
-                            <DialogDescription>Atualize as informações da foto</DialogDescription>
-                          </DialogHeader>
-                          <EditPhotoForm photo={photo} categories={categories} onSave={handleUpdate} />
-                        </DialogContent>
-                      </Dialog>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-8 w-8 p-0 border-gray-600 text-blue-400 hover:bg-blue-600 hover:text-white">
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md bg-gray-800 border-gray-700">
+                            <DialogHeader>
+                              <DialogTitle className="text-white">Editar Foto</DialogTitle>
+                              <DialogDescription className="text-gray-300">Atualize as informações da foto</DialogDescription>
+                            </DialogHeader>
+                            <EditPhotoForm photo={photo} categories={categories} onSave={handleUpdate} />
+                          </DialogContent>
+                        </Dialog>
 
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleDelete(photo.id)} 
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleDelete(photo.id)} 
+                          className="h-8 w-8 p-0 border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
@@ -242,38 +254,38 @@ function EditPhotoForm({ photo, categories, onSave }) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="edit-title">Título</Label>
+        <Label htmlFor="edit-title" className="text-white">Título</Label>
         <Input 
           id="edit-title" 
           value={title} 
           onChange={(e) => setTitle(e.target.value)} 
           required 
           disabled={isSubmitting}
-          className="w-full"
+          className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="edit-description">Descrição</Label>
+        <Label htmlFor="edit-description" className="text-white">Descrição</Label>
         <Textarea 
           id="edit-description" 
           value={description} 
           onChange={(e) => setDescription(e.target.value)}
           disabled={isSubmitting}
-          className="w-full min-h-20"
+          className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 min-h-20"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="edit-category">Categoria</Label>
+        <Label htmlFor="edit-category" className="text-white">Categoria</Label>
         <Select value={categoryId} onValueChange={setCategoryId} disabled={isSubmitting}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-500">
             <SelectValue placeholder="Selecione uma categoria" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Sem categoria</SelectItem>
+          <SelectContent className="bg-gray-700 border-gray-600">
+            <SelectItem value="none" className="text-white hover:bg-gray-600">Sem categoria</SelectItem>
             {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id.toString()}>
+              <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
                 {category.name}
               </SelectItem>
             ))}
@@ -281,26 +293,33 @@ function EditPhotoForm({ photo, categories, onSave }) {
         </Select>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 p-3 bg-gray-700/30 rounded-lg">
         <input 
           type="checkbox" 
           id="edit-featured" 
           checked={isFeatured} 
           onChange={(e) => setIsFeatured(e.target.checked)} 
           disabled={isSubmitting}
-          className="rounded border-gray-300"
+          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
         />
-        <Label htmlFor="edit-featured" className="text-sm font-medium">
+        <Label htmlFor="edit-featured" className="text-white font-medium">
           Foto em destaque
         </Label>
       </div>
 
       <Button 
         onClick={handleSubmit}
-        className="w-full" 
+        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold" 
         disabled={isSubmitting || !title.trim()}
       >
-        {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+        {isSubmitting ? (
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Salvando...</span>
+          </div>
+        ) : (
+          'Salvar Alterações'
+        )}
       </Button>
     </div>
   )

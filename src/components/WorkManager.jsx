@@ -5,399 +5,302 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
-import { Folder, Edit, Trash2, Star, Eye, Plus, Image } from 'lucide-react'
+import { Upload, X, CheckCircle, AlertCircle, Loader2, ImagePlus } from 'lucide-react'
 
-function WorkManager({ refreshTrigger }) {
-  const [works, setWorks] = useState([])
-  const [photos, setPhotos] = useState([])
-  const [loading, setLoading] = useState(true)
+function PhotoUpload({ onUploadSuccess }) {
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [preview, setPreview] = useState(null)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [workId, setWorkId] = useState('')
+  const [isFeatured, setIsFeatured] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState(null)
   const [categories] = useState([
     { id: 1, name: 'Ensaios' },
     { id: 2, name: 'Produtos' },
     { id: 3, name: 'Eventos' }
   ])
+  const [works, setWorks] = useState([])
 
-  const loadWorks = async () => {
-    try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/works`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const worksData = await response.json()
-        setWorks(worksData)
+  // Carregar trabalhos disponíveis
+  useEffect(() => {
+    const loadWorks = async () => {
+      try {
+        const token = localStorage.getItem('adminToken')
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${API_URL}/api/works`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const worksData = await response.json()
+          setWorks(worksData)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar trabalhos:', error)
       }
-    } catch (error) {
-      console.error('Erro ao carregar trabalhos:', error)
+    }
+
+    loadWorks()
+  }, [])
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      setSelectedFile(file)
+      setTitle(file.name.split('.')[0]) // Nome sem extensão como título padrão
+      
+      // Criar preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setPreview(e.target.result)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  const loadPhotos = async () => {
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setUploadStatus({ type: 'error', message: 'Selecione uma foto primeiro' })
+      return
+    }
+
+    setIsUploading(true)
+    setUploadStatus(null)
+
     try {
-      const token = localStorage.getItem('adminToken')
+      const formData = new FormData()
+      formData.append('photo', selectedFile)
+      formData.append('title', title)
+      formData.append('description', description)
+      formData.append('category_id', categoryId && categoryId !== 'none' ? categoryId : '')
+      formData.append('work_id', workId && workId !== 'none' ? workId : '')
+      formData.append('is_featured', isFeatured)
+
+      const token = localStorage.getItem("adminToken")
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
       const response = await fetch(`${API_URL}/api/photos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const photosData = await response.json()
-        setPhotos(photosData)
-      }
-    } catch (error) {
-      console.error('Erro ao carregar fotos:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadWorks()
-    loadPhotos()
-  }, [refreshTrigger])
-
-  const handleCreateWork = async (workData) => {
-    try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/works`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify(workData)
+        body: formData
       })
 
-      if (response.ok) {
-        await loadWorks()
-      } else {
-        alert('Erro ao criar trabalho')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
+
+      const result = await response.json()
+
+      setUploadStatus({ type: 'success', message: 'Foto enviada com sucesso!' })
+      
+      // Limpar formulário
+      clearForm()
+      
+      // Callback para atualizar lista de fotos
+      if (onUploadSuccess) {
+        onUploadSuccess(result)
+      }
+
     } catch (error) {
-      console.error('Erro ao criar trabalho:', error)
-      alert('Erro de conexão')
+      console.error('Erro no upload:', error)
+      setUploadStatus({ 
+        type: 'error', 
+        message: error.message || 'Erro de conexão com o servidor' 
+      })
+    } finally {
+      setIsUploading(false)
     }
   }
 
-  const handleDeleteWork = async (workId) => {
-    if (!confirm('Tem certeza que deseja deletar este trabalho?')) return
-
-    try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/works/${workId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        setWorks(works.filter(work => work.id !== workId))
-      } else {
-        alert('Erro ao deletar trabalho')
-      }
-    } catch (error) {
-      console.error('Erro ao deletar trabalho:', error)
-      alert('Erro de conexão')
-    }
+  const clearForm = () => {
+    setSelectedFile(null)
+    setPreview(null)
+    setTitle('')
+    setDescription('')
+    setCategoryId('')
+    setWorkId('')
+    setIsFeatured(false)
+    setUploadStatus(null)
   }
 
-  const getPhotosWithoutWork = () => {
-    return photos.filter(photo => !photo.work_id)
-  }
-
-  const getPhotosForWork = (workId) => {
-    return photos.filter(photo => photo.work_id === workId)
-  }
-
-  if (loading) {
-    return (
-      <Card className="w-full">
-        <CardContent className="p-6">
-          <div className="text-center">Carregando trabalhos...</div>
-        </CardContent>
-      </Card>
-    )
+  const clearSelection = () => {
+    clearForm()
   }
 
   return (
-    <div className="space-y-6 w-full">
-      {/* Criar Novo Trabalho */}
-      <Card className="w-full">
+    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen p-6">
+      <Card className="w-full max-w-2xl mx-auto bg-gray-800/80 backdrop-blur-sm border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Plus className="h-5 w-5" />
-            <span>Criar Novo Trabalho</span>
+          <CardTitle className="flex items-center space-x-2 text-white">
+            <Upload className="h-5 w-5" />
+            <span>Upload de Foto</span>
           </CardTitle>
-          <CardDescription>
-            Agrupe suas fotos em trabalhos temáticos
+          <CardDescription className="text-gray-300">
+            Adicione uma nova foto ao seu portfólio
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <CreateWorkForm categories={categories} onSubmit={handleCreateWork} />
-        </CardContent>
-      </Card>
-
-      {/* Lista de Trabalhos */}
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Folder className="h-5 w-5" />
-            <span>Gerenciar Trabalhos ({works.length})</span>
-          </CardTitle>
-          <CardDescription>
-            Visualize e organize seus trabalhos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {works.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Folder className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Nenhum trabalho encontrado</p>
-              <p className="text-sm">Crie seu primeiro trabalho para começar</p>
+        <CardContent className="space-y-6">
+          {uploadStatus && (
+            <div className={`flex items-center space-x-2 p-4 rounded-lg border ${
+              uploadStatus.type === 'success' 
+                ? 'bg-green-900/50 border-green-500 text-green-200' 
+                : 'bg-red-900/50 border-red-500 text-red-200'
+            }`}>
+              {uploadStatus.type === 'success' ? (
+                <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
+              )}
+              <span className="font-medium">{uploadStatus.message}</span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {works.map((work) => (
-                <WorkCard 
-                  key={work.id} 
-                  work={work} 
-                  photos={getPhotosForWork(work.id)}
-                  onDelete={handleDeleteWork}
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="photo-upload" className="text-white">Selecionar Foto</Label>
+            <div className="relative">
+              <Input
+                id="photo-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                disabled={isUploading}
+                className="bg-gray-700/50 border-gray-600 text-white file:bg-blue-600 file:border-0 file:text-white file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-blue-700"
+              />
+              <ImagePlus className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {preview && (
+            <div className="relative">
+              <div className="relative bg-gray-900 rounded-lg p-4 border border-gray-600">
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="w-full max-h-64 object-contain rounded-lg"
                 />
-              ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSelection}
+                  className="absolute top-2 right-2 bg-red-600 border-red-500 text-white hover:bg-red-700 h-8 w-8 p-0"
+                  disabled={isUploading}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {selectedFile && (
+            <div className="space-y-4 bg-gray-700/30 p-6 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title" className="text-white">Título</Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Título da foto"
+                    disabled={isUploading}
+                    className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category" className="text-white">Categoria</Label>
+                  <Select value={categoryId} onValueChange={setCategoryId} disabled={isUploading}>
+                    <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 border-gray-600">
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description" className="text-white">Descrição</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Descrição da foto (opcional)"
+                  disabled={isUploading}
+                  className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 min-h-20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="work" className="text-white">Trabalho (Opcional)</Label>
+                <Select value={workId} onValueChange={setWorkId} disabled={isUploading}>
+                  <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-500">
+                    <SelectValue placeholder="Selecione um trabalho" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600">
+                    <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhum trabalho</SelectItem>
+                    {works.map((work) => (
+                      <SelectItem key={work.id} value={work.id.toString()} className="text-white hover:bg-gray-600">
+                        {work.title} ({work.category_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center space-x-2 p-3 bg-gray-600/30 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="featured"
+                  checked={isFeatured}
+                  onChange={(e) => setIsFeatured(e.target.checked)}
+                  disabled={isUploading}
+                  className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                />
+                <Label htmlFor="featured" className="text-white font-medium">Foto em destaque</Label>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <Button
+                  onClick={handleUpload}
+                  disabled={isUploading || !title.trim()}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold"
+                >
+                  {isUploading ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Enviando...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <Upload className="h-4 w-4" />
+                      <span>Enviar Foto</span>
+                    </div>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearSelection}
+                  disabled={isUploading}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Fotos sem Trabalho */}
-      {getPhotosWithoutWork().length > 0 && (
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Image className="h-5 w-5" />
-              <span>Fotos sem Trabalho ({getPhotosWithoutWork().length})</span>
-            </CardTitle>
-            <CardDescription>
-              Fotos que ainda não foram associadas a nenhum trabalho
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {getPhotosWithoutWork().map((photo) => (
-                <div key={photo.id} className="relative group">
-                  <img 
-                    src={photo.url} 
-                    alt={photo.title} 
-                    className="w-full h-20 object-cover rounded border"
-                    onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
-                    <span className="text-white text-xs text-center p-1">{photo.title}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
 
-function CreateWorkForm({ categories, onSubmit }) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  const [isFeatured, setIsFeatured] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleSubmit = async () => {
-    if (!title.trim()) return
-
-    setIsSubmitting(true)
-
-    try {
-      await onSubmit({
-        title,
-        description,
-        category_id: categoryId && categoryId !== 'none' ? parseInt(categoryId) : null,
-        is_featured: isFeatured
-      })
-
-      // Limpar formulário
-      setTitle('')
-      setDescription('')
-      setCategoryId('')
-      setIsFeatured(false)
-    } catch (error) {
-      console.error('Erro ao criar trabalho:', error)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="work-title">Título do Trabalho</Label>
-          <Input
-            id="work-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex: Ensaio Primavera 2024"
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="work-category">Categoria</Label>
-          <Select value={categoryId} onValueChange={setCategoryId} disabled={isSubmitting}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione uma categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id.toString()}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="work-description">Descrição</Label>
-        <Textarea
-          id="work-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Descreva o trabalho..."
-          disabled={isSubmitting}
-          className="min-h-20"
-        />
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="work-featured"
-          checked={isFeatured}
-          onChange={(e) => setIsFeatured(e.target.checked)}
-          disabled={isSubmitting}
-          className="rounded border-gray-300"
-        />
-        <Label htmlFor="work-featured">Trabalho em destaque</Label>
-      </div>
-
-      <Button 
-        onClick={handleSubmit}
-        disabled={isSubmitting || !title.trim()}
-        className="w-full"
-      >
-        {isSubmitting ? 'Criando...' : 'Criar Trabalho'}
-      </Button>
-    </div>
-  )
-}
-
-function WorkCard({ work, photos, onDelete }) {
-  return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-      <div className="relative">
-        {work.cover_photo_url ? (
-          <img 
-            src={work.cover_photo_url} 
-            alt={work.title} 
-            className="w-full h-32 object-cover"
-            onError={(e) => {
-              e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
-            }}
-          />
-        ) : (
-          <div className="w-full h-32 bg-gray-200 flex items-center justify-center">
-            <Folder className="h-8 w-8 text-gray-400" />
-          </div>
-        )}
-        {work.is_featured && (
-          <Badge className="absolute top-2 left-2 bg-yellow-500 hover:bg-yellow-600">
-            <Star className="h-3 w-3 mr-1" />
-            Destaque
-          </Badge>
-        )}
-      </div>
-
-      <div className="p-4">
-        <h3 className="font-medium truncate text-gray-900">{work.title}</h3>
-        {work.description && (
-          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{work.description}</p>
-        )}
-
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="text-xs">
-              {work.category_name || 'Sem categoria'}
-            </Badge>
-            <span className="text-xs text-gray-500">{photos.length} fotos</span>
-          </div>
-
-          <div className="flex space-x-1">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 w-8 p-0">
-                  <Eye className="h-3 w-3" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>{work.title}</DialogTitle>
-                  <DialogDescription>{work.description}</DialogDescription>
-                </DialogHeader>
-                {photos.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-                    {photos.map((photo) => (
-                      <img 
-                        key={photo.id}
-                        src={photo.url} 
-                        alt={photo.title} 
-                        className="w-full h-20 object-cover rounded"
-                        onError={(e) => {
-                          e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <p>Nenhuma foto neste trabalho</p>
-                  </div>
-                )}
-              </DialogContent>
-            </Dialog>
-
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => onDelete(work.id)} 
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default WorkManager
+export default PhotoUpload
