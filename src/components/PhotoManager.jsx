@@ -229,7 +229,7 @@ function EditPhotoForm({ photo, categories, onSave }) {
         id: photo.id,
         title,
         description,
-        category_id: categoryId ? parseInt(categoryId) : null,
+        category_id: categoryId && categoryId !== 'none' ? parseInt(categoryId) : null,
         is_featured: isFeatured
       })
     } catch (error) {
@@ -271,7 +271,7 @@ function EditPhotoForm({ photo, categories, onSave }) {
             <SelectValue placeholder="Selecione uma categoria" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Sem categoria</SelectItem>
+            <SelectItem value="none">Sem categoria</SelectItem>
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id.toString()}>
                 {category.name}

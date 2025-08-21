@@ -228,7 +228,7 @@ function CreateWorkForm({ categories, onSubmit }) {
       await onSubmit({
         title,
         description,
-        category_id: categoryId ? parseInt(categoryId) : null,
+        category_id: categoryId && categoryId !== 'none' ? parseInt(categoryId) : null,
         is_featured: isFeatured
       })
 

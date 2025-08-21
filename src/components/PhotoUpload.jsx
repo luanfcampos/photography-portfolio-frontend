@@ -74,8 +74,8 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('photo', selectedFile)
       formData.append('title', title)
       formData.append('description', description)
-      formData.append('category_id', categoryId)
-      formData.append('work_id', workId)
+      formData.append('category_id', categoryId && categoryId !== 'none' ? categoryId : '')
+      formData.append('work_id', workId && workId !== 'none' ? workId : '')
       formData.append('is_featured', isFeatured)
 
       const token = localStorage.getItem("adminToken")
@@ -220,7 +220,7 @@ function PhotoUpload({ onUploadSuccess }) {
                   <SelectValue placeholder="Selecione um trabalho" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum trabalho</SelectItem>
+                  <SelectItem value="none">Nenhum trabalho</SelectItem>
                   {works.map((work) => (
                     <SelectItem key={work.id} value={work.id.toString()}>
                       {work.title} ({work.category_name})
