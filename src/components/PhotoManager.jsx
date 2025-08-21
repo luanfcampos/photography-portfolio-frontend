@@ -1,42 +1,41 @@
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 import { Image, Edit, Trash2, Star, Eye } from 'lucide-react'
 
 function PhotoManager({ refreshTrigger }) {
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
   const [editingPhoto, setEditingPhoto] = useState(null)
-  const [categories, setCategories] = useState([
+  const [categories] = useState([
     { id: 1, name: 'Ensaios' },
     { id: 2, name: 'Produtos' },
     { id: 3, name: 'Eventos' }
   ])
- 
 
- const loadPhotos = async () => {
-  try {
-    const token = localStorage.getItem('adminToken')
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    if (response.ok) {
-      const photosData = await response.json()
-      // photosData agora já tem { url: "https://res.cloudinary.com/..." }
-      setPhotos(photosData)
+  const loadPhotos = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/photos`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const photosData = await response.json()
+        setPhotos(photosData)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar fotos:', error)
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error('Erro ao carregar fotos:', error)
-  } finally {
-    setLoading(false)
   }
-}
 
   useEffect(() => {
     loadPhotos()
@@ -47,7 +46,8 @@ function PhotoManager({ refreshTrigger }) {
 
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos/${photoId}`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/photos/${photoId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -68,7 +68,8 @@ function PhotoManager({ refreshTrigger }) {
   const handleUpdate = async (photoData) => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos/${photoData.id}`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/photos/${photoData.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -91,7 +92,7 @@ function PhotoManager({ refreshTrigger }) {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="w-full">
         <CardContent className="p-6">
           <div className="text-center">Carregando fotos...</div>
         </CardContent>
@@ -100,7 +101,7 @@ function PhotoManager({ refreshTrigger }) {
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Image className="h-5 w-5" />
@@ -120,11 +121,18 @@ function PhotoManager({ refreshTrigger }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {photos.map((photo) => (
-              <div key={photo.id} className="border rounded-lg overflow-hidden">
+              <div key={photo.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
                 <div className="relative">
-                  <img src={photo.url} alt={photo.title} className="w-full h-48 object-cover" />
+                  <img 
+                    src={photo.url} 
+                    alt={photo.title || 'Foto'} 
+                    className="w-full h-48 object-cover"
+                    onError={(e) => {
+                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
+                    }}
+                  />
                   {photo.is_featured && (
-                    <Badge className="absolute top-2 left-2 bg-yellow-500">
+                    <Badge className="absolute top-2 left-2 bg-yellow-500 hover:bg-yellow-600">
                       <Star className="h-3 w-3 mr-1" />
                       Destaque
                     </Badge>
@@ -132,39 +140,50 @@ function PhotoManager({ refreshTrigger }) {
                 </div>
 
                 <div className="p-4">
-                  <h3 className="font-medium truncate">{photo.title}</h3>
+                  <h3 className="font-medium truncate text-gray-900">{photo.title || 'Sem título'}</h3>
                   {photo.description && (
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">{photo.description}</p>
                   )}
 
                   <div className="flex items-center justify-between mt-3">
-                    <Badge variant="outline">{photo.category_name || 'Sem categoria'}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {photo.category_name || 'Sem categoria'}
+                    </Badge>
 
                     <div className="flex space-x-1">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0">
                             <Eye className="h-3 w-3" />
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
-                            <DialogTitle>{photo.title}</DialogTitle>
+                            <DialogTitle>{photo.title || 'Foto'}</DialogTitle>
                           </DialogHeader>
-                          <img src={photo.url} alt={photo.title} className="w-full max-h-96 object-contain rounded" />
+                          <div className="flex justify-center">
+                            <img 
+                              src={photo.url} 
+                              alt={photo.title || 'Foto'} 
+                              className="max-w-full max-h-96 object-contain rounded"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23f3f4f6"/><text x="150" y="100" text-anchor="middle" dy=".3em" fill="%236b7280">Erro ao carregar</text></svg>'
+                              }}
+                            />
+                          </div>
                           {photo.description && (
-                            <p className="text-sm text-gray-600">{photo.description}</p>
+                            <p className="text-sm text-gray-600 mt-4">{photo.description}</p>
                           )}
                         </DialogContent>
                       </Dialog>
 
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0">
                             <Edit className="h-3 w-3" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-w-md">
                           <DialogHeader>
                             <DialogTitle>Editar Foto</DialogTitle>
                             <DialogDescription>Atualize as informações da foto</DialogDescription>
@@ -173,7 +192,12 @@ function PhotoManager({ refreshTrigger }) {
                         </DialogContent>
                       </Dialog>
 
-                      <Button size="sm" variant="outline" onClick={() => handleDelete(photo.id)} className="text-red-600 hover:text-red-700">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleDelete(photo.id)} 
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -189,56 +213,96 @@ function PhotoManager({ refreshTrigger }) {
 }
 
 function EditPhotoForm({ photo, categories, onSave }) {
-  const [title, setTitle] = useState(photo.title)
-  const [description, setDescription] = useState(photo.description || '')
-  const [categoryId, setCategoryId] = useState(photo.category_id?.toString() || '')
-  const [isFeatured, setIsFeatured] = useState(photo.is_featured)
+  const [title, setTitle] = useState(photo?.title || '')
+  const [description, setDescription] = useState(photo?.description || '')
+  const [categoryId, setCategoryId] = useState(photo?.category_id?.toString() || '')
+  const [isFeatured, setIsFeatured] = useState(photo?.is_featured || false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSave({
-      id: photo.id,
-      title,
-      description,
-      category_id: categoryId ? parseInt(categoryId) : null,
-      is_featured: isFeatured
-    })
+  const handleSubmit = async () => {
+    if (!title.trim()) return
+
+    setIsSubmitting(true)
+
+    try {
+      await onSave({
+        id: photo.id,
+        title,
+        description,
+        category_id: categoryId ? parseInt(categoryId) : null,
+        is_featured: isFeatured
+      })
+    } catch (error) {
+      console.error('Erro ao salvar:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="edit-title">Título</Label>
-        <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <Input 
+          id="edit-title" 
+          value={title} 
+          onChange={(e) => setTitle(e.target.value)} 
+          required 
+          disabled={isSubmitting}
+          className="w-full"
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="edit-description">Descrição</Label>
-        <Textarea id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Textarea 
+          id="edit-description" 
+          value={description} 
+          onChange={(e) => setDescription(e.target.value)}
+          disabled={isSubmitting}
+          className="w-full min-h-20"
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="edit-category">Categoria</Label>
-        <Select value={categoryId} onValueChange={setCategoryId}>
-          <SelectTrigger>
+        <Select value={categoryId} onValueChange={setCategoryId} disabled={isSubmitting}>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Selecione uma categoria" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Sem categoria</SelectItem>
             {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id.toString()}>{category.name}</SelectItem>
+              <SelectItem key={category.id} value={category.id.toString()}>
+                {category.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
       <div className="flex items-center space-x-2">
-        <input type="checkbox" id="edit-featured" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="rounded" />
-        <Label htmlFor="edit-featured">Foto em destaque</Label>
+        <input 
+          type="checkbox" 
+          id="edit-featured" 
+          checked={isFeatured} 
+          onChange={(e) => setIsFeatured(e.target.checked)} 
+          disabled={isSubmitting}
+          className="rounded border-gray-300"
+        />
+        <Label htmlFor="edit-featured" className="text-sm font-medium">
+          Foto em destaque
+        </Label>
       </div>
 
-      <Button type="submit" className="w-full">Salvar Alterações</Button>
-    </form>
+      <Button 
+        onClick={handleSubmit}
+        className="w-full" 
+        disabled={isSubmitting || !title.trim()}
+      >
+        {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+      </Button>
+    </div>
   )
 }
 

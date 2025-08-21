@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react'
 
 function PhotoUpload({ onUploadSuccess }) {
@@ -17,7 +17,7 @@ function PhotoUpload({ onUploadSuccess }) {
   const [isFeatured, setIsFeatured] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState(null)
-  const [categories, setCategories] = useState([
+  const [categories] = useState([
     { id: 1, name: 'Ensaios' },
     { id: 2, name: 'Produtos' },
     { id: 3, name: 'Eventos' }
@@ -29,7 +29,8 @@ function PhotoUpload({ onUploadSuccess }) {
     const loadWorks = async () => {
       try {
         const token = localStorage.getItem('adminToken')
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/works`, {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${API_URL}/api/works`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         if (response.ok) {
@@ -77,9 +78,9 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('work_id', workId)
       formData.append('is_featured', isFeatured)
 
-      // ✅ CORRIGIDO: URL sem duplicação
       const token = localStorage.getItem("adminToken")
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/photos`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -87,7 +88,6 @@ function PhotoUpload({ onUploadSuccess }) {
         body: formData
       })
 
-      // ✅ MELHORADO: Tratamento de erro mais robusto
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
@@ -98,17 +98,7 @@ function PhotoUpload({ onUploadSuccess }) {
       setUploadStatus({ type: 'success', message: 'Foto enviada com sucesso!' })
       
       // Limpar formulário
-      setSelectedFile(null)
-      setPreview(null)
-      setTitle('')
-      setDescription('')
-      setCategoryId('')
-      setWorkId('')
-      setIsFeatured(false)
-      
-      // Resetar input de arquivo
-      const fileInput = document.getElementById('photo-upload')
-      if (fileInput) fileInput.value = ''
+      clearForm()
       
       // Callback para atualizar lista de fotos
       if (onUploadSuccess) {
@@ -126,19 +116,23 @@ function PhotoUpload({ onUploadSuccess }) {
     }
   }
 
-  const clearSelection = () => {
+  const clearForm = () => {
     setSelectedFile(null)
     setPreview(null)
     setTitle('')
     setDescription('')
+    setCategoryId('')
+    setWorkId('')
+    setIsFeatured(false)
     setUploadStatus(null)
-    
-    const fileInput = document.getElementById('photo-upload')
-    if (fileInput) fileInput.value = ''
+  }
+
+  const clearSelection = () => {
+    clearForm()
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Upload className="h-5 w-5" />
@@ -149,7 +143,6 @@ function PhotoUpload({ onUploadSuccess }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Status de upload */}
         {uploadStatus && (
           <div className={`flex items-center space-x-2 p-3 rounded ${
             uploadStatus.type === 'success' 
@@ -165,7 +158,6 @@ function PhotoUpload({ onUploadSuccess }) {
           </div>
         )}
 
-        {/* Seleção de arquivo */}
         <div className="space-y-2">
           <Label htmlFor="photo-upload">Selecionar Foto</Label>
           <Input
@@ -177,25 +169,25 @@ function PhotoUpload({ onUploadSuccess }) {
           />
         </div>
 
-        {/* Preview da imagem */}
         {preview && (
-          <div className="relative">
+          <div className="relative inline-block">
             <img
               src={preview}
               alt="Preview"
               className="w-full max-w-md h-48 object-cover rounded-lg border"
             />
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={clearSelection}
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+              className="absolute top-2 right-2 bg-red-500 text-white hover:bg-red-600 h-8 w-8 p-0"
               disabled={isUploading}
             >
               <X className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         )}
 
-        {/* Formulário de detalhes */}
         {selectedFile && (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -217,6 +209,7 @@ function PhotoUpload({ onUploadSuccess }) {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Descrição da foto (opcional)"
                 disabled={isUploading}
+                className="min-h-20"
               />
             </div>
 
@@ -260,7 +253,7 @@ function PhotoUpload({ onUploadSuccess }) {
                 checked={isFeatured}
                 onChange={(e) => setIsFeatured(e.target.checked)}
                 disabled={isUploading}
-                className="rounded"
+                className="rounded border-gray-300"
               />
               <Label htmlFor="featured">Foto em destaque</Label>
             </div>

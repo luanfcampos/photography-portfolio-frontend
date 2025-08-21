@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 import { Folder, Edit, Trash2, Star, Eye, Plus, Image } from 'lucide-react'
 
 function WorkManager({ refreshTrigger }) {
   const [works, setWorks] = useState([])
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [categories, setCategories] = useState([
+  const [categories] = useState([
     { id: 1, name: 'Ensaios' },
     { id: 2, name: 'Produtos' },
     { id: 3, name: 'Eventos' }
@@ -22,7 +22,8 @@ function WorkManager({ refreshTrigger }) {
   const loadWorks = async () => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/works`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/works`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -37,7 +38,8 @@ function WorkManager({ refreshTrigger }) {
   const loadPhotos = async () => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/photos`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -59,7 +61,8 @@ function WorkManager({ refreshTrigger }) {
   const handleCreateWork = async (workData) => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/works`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/works`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -69,7 +72,7 @@ function WorkManager({ refreshTrigger }) {
       })
 
       if (response.ok) {
-        loadWorks()
+        await loadWorks()
       } else {
         alert('Erro ao criar trabalho')
       }
@@ -84,7 +87,8 @@ function WorkManager({ refreshTrigger }) {
 
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/works/${workId}`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/works/${workId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -112,7 +116,7 @@ function WorkManager({ refreshTrigger }) {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="w-full">
         <CardContent className="p-6">
           <div className="text-center">Carregando trabalhos...</div>
         </CardContent>
@@ -121,9 +125,9 @@ function WorkManager({ refreshTrigger }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Criar Novo Trabalho */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Plus className="h-5 w-5" />
@@ -139,7 +143,7 @@ function WorkManager({ refreshTrigger }) {
       </Card>
 
       {/* Lista de Trabalhos */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Folder className="h-5 w-5" />
@@ -173,7 +177,7 @@ function WorkManager({ refreshTrigger }) {
 
       {/* Fotos sem Trabalho */}
       {getPhotosWithoutWork().length > 0 && (
-        <Card>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Image className="h-5 w-5" />
@@ -191,6 +195,9 @@ function WorkManager({ refreshTrigger }) {
                     src={photo.url} 
                     alt={photo.title} 
                     className="w-full h-20 object-cover rounded border"
+                    onError={(e) => {
+                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
+                    }}
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
                     <span className="text-white text-xs text-center p-1">{photo.title}</span>
@@ -212,27 +219,33 @@ function CreateWorkForm({ categories, onSubmit }) {
   const [isFeatured, setIsFeatured] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
+    if (!title.trim()) return
+
     setIsSubmitting(true)
 
-    await onSubmit({
-      title,
-      description,
-      category_id: categoryId ? parseInt(categoryId) : null,
-      is_featured: isFeatured
-    })
+    try {
+      await onSubmit({
+        title,
+        description,
+        category_id: categoryId ? parseInt(categoryId) : null,
+        is_featured: isFeatured
+      })
 
-    // Limpar formulário
-    setTitle('')
-    setDescription('')
-    setCategoryId('')
-    setIsFeatured(false)
-    setIsSubmitting(false)
+      // Limpar formulário
+      setTitle('')
+      setDescription('')
+      setCategoryId('')
+      setIsFeatured(false)
+    } catch (error) {
+      console.error('Erro ao criar trabalho:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="work-title">Título do Trabalho</Label>
@@ -271,6 +284,7 @@ function CreateWorkForm({ categories, onSubmit }) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Descreva o trabalho..."
           disabled={isSubmitting}
+          className="min-h-20"
         />
       </div>
 
@@ -281,31 +295,42 @@ function CreateWorkForm({ categories, onSubmit }) {
           checked={isFeatured}
           onChange={(e) => setIsFeatured(e.target.checked)}
           disabled={isSubmitting}
-          className="rounded"
+          className="rounded border-gray-300"
         />
         <Label htmlFor="work-featured">Trabalho em destaque</Label>
       </div>
 
-      <Button type="submit" disabled={isSubmitting || !title.trim()}>
+      <Button 
+        onClick={handleSubmit}
+        disabled={isSubmitting || !title.trim()}
+        className="w-full"
+      >
         {isSubmitting ? 'Criando...' : 'Criar Trabalho'}
       </Button>
-    </form>
+    </div>
   )
 }
 
 function WorkCard({ work, photos, onDelete }) {
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
       <div className="relative">
         {work.cover_photo_url ? (
-          <img src={work.cover_photo_url} alt={work.title} className="w-full h-32 object-cover" />
+          <img 
+            src={work.cover_photo_url} 
+            alt={work.title} 
+            className="w-full h-32 object-cover"
+            onError={(e) => {
+              e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
+            }}
+          />
         ) : (
           <div className="w-full h-32 bg-gray-200 flex items-center justify-center">
             <Folder className="h-8 w-8 text-gray-400" />
           </div>
         )}
         {work.is_featured && (
-          <Badge className="absolute top-2 left-2 bg-yellow-500">
+          <Badge className="absolute top-2 left-2 bg-yellow-500 hover:bg-yellow-600">
             <Star className="h-3 w-3 mr-1" />
             Destaque
           </Badge>
@@ -313,21 +338,23 @@ function WorkCard({ work, photos, onDelete }) {
       </div>
 
       <div className="p-4">
-        <h3 className="font-medium truncate">{work.title}</h3>
+        <h3 className="font-medium truncate text-gray-900">{work.title}</h3>
         {work.description && (
           <p className="text-sm text-gray-600 mt-1 line-clamp-2">{work.description}</p>
         )}
 
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center space-x-2">
-            <Badge variant="outline">{work.category_name || 'Sem categoria'}</Badge>
+            <Badge variant="outline" className="text-xs">
+              {work.category_name || 'Sem categoria'}
+            </Badge>
             <span className="text-xs text-gray-500">{photos.length} fotos</span>
           </div>
 
           <div className="flex space-x-1">
             <Dialog>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" className="h-8 w-8 p-0">
                   <Eye className="h-3 w-3" />
                 </Button>
               </DialogTrigger>
@@ -336,20 +363,34 @@ function WorkCard({ work, photos, onDelete }) {
                   <DialogTitle>{work.title}</DialogTitle>
                   <DialogDescription>{work.description}</DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-                  {photos.map((photo) => (
-                    <img 
-                      key={photo.id}
-                      src={photo.url} 
-                      alt={photo.title} 
-                      className="w-full h-20 object-cover rounded"
-                    />
-                  ))}
-                </div>
+                {photos.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                    {photos.map((photo) => (
+                      <img 
+                        key={photo.id}
+                        src={photo.url} 
+                        alt={photo.title} 
+                        className="w-full h-20 object-cover rounded"
+                        onError={(e) => {
+                          e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <p>Nenhuma foto neste trabalho</p>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
 
-            <Button size="sm" variant="outline" onClick={() => onDelete(work.id)} className="text-red-600 hover:text-red-700">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => onDelete(work.id)} 
+              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
               <Trash2 className="h-3 w-3" />
             </Button>
           </div>
@@ -360,4 +401,3 @@ function WorkCard({ work, photos, onDelete }) {
 }
 
 export default WorkManager
-
