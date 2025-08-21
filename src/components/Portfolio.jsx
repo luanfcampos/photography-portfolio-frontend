@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Camera, Mail, Instagram, Facebook, Twitter, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import WhatsAppFloatingButton from './WhatsAppFloatingButton'
 
 function Portfolio() {
   const navigate = useNavigate()
@@ -168,7 +169,7 @@ function Portfolio() {
       </header>
 
       {/* Hero Section */}
-      <section id="home" className="relative h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black text-white">
+      <section id="home" className="relative h-screen flex items-center justify-center bg-[url('/src/assets/portrait2.jpg')] bg-center text-white">
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <motion.h1 
@@ -347,26 +348,25 @@ function Portfolio() {
             <div>
               <h2 className="text-4xl font-bold text-gray-900 mb-6">Sobre Mim</h2>
               <p className="text-lg text-gray-600 mb-6">
-                Sou um fotógrafo apaixonado por capturar a essência de cada momento. 
-                Com mais de 5 anos de experiência, especializo-me em ensaios fotográficos e fotografia de produtos, 
-                sempre buscando contar histórias através das minhas lentes.
+                Sou um fotógrafo movido pela missão de transformar momentos em memórias eternas. Com mais de seis anos de experiência, dedico-me a criar imagens autênticas e cheias de significado, seja em ensaios fotográficos ou na fotografia de produtos.
               </p>
               <p className="text-lg text-gray-600 mb-8">
-                Cada foto é uma oportunidade de preservar memórias e emoções que durarão para sempre. 
-                Meu objetivo é criar imagens que não apenas documentem momentos, mas que também 
-                transmitam sentimentos e despertem conexões.
+                Minha abordagem vai além do registro: busco contar histórias, revelar emoções e capturar a essência única de cada pessoa, objeto ou situação. Acredito que uma boa fotografia não só documenta um instante, mas também evoca sentimentos e cria laços que permanecem no tempo.
+              </p>
+               <p className="text-lg text-gray-600 mb-8">
+               Meu trabalho é guiado pela paixão por conectar pessoas através de imagens e pela constante busca por ângulos, luzes e perspectivas que inspirem e emocionem.
               </p>
               <div className="flex space-x-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-black">500+</div>
+                  <div className="text-2xl font-bold text-black">5000+</div>
                   <div className="text-sm text-gray-600">Fotos</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-black">50+</div>
+                  <div className="text-2xl font-bold text-black">100+</div>
                   <div className="text-sm text-gray-600">Ensaios</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-black">5+</div>
+                  <div className="text-2xl font-bold text-black">6+</div>
                   <div className="text-sm text-gray-600">Anos</div>
                 </div>
               </div>
@@ -402,22 +402,17 @@ function Portfolio() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <Camera className="h-5 w-5 text-gray-600" />
-                  <span className="text-gray-700">+55 (11) 99999-9999</span>
+                  <span className="text-gray-700">+55 (31) 93301-4291</span>
                 </div>
               </div>
 
               <div className="mt-8">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Redes Sociais</h4>
                 <div className="flex space-x-4">
-                  <a href="#" className="text-gray-600 hover:text-black transition-colors">
+                  <a href="https://www.instagram.com/luanferreira.foto/" className="text-gray-600 hover:text-black transition-colors">
                     <Instagram className="h-6 w-6" />
                   </a>
-                  <a href="#" className="text-gray-600 hover:text-black transition-colors">
-                    <Facebook className="h-6 w-6" />
-                  </a>
-                  <a href="#" className="text-gray-600 hover:text-black transition-colors">
-                    <Twitter className="h-6 w-6" />
-                  </a>
+                  
                 </div>
               </div>
             </div>
@@ -481,22 +476,18 @@ function Portfolio() {
               Fotógrafo profissional especializado em retratos e eventos
             </p>
             <div className="flex justify-center space-x-6">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a href="https://www.instagram.com/luanferreira.foto/" className="text-gray-400 hover:text-white transition-colors">
                 <Instagram className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Twitter className="h-5 w-5" />
-              </a>
+              
             </div>
             <div className="mt-8 pt-8 border-t border-gray-800 text-gray-400 text-sm">
-              © 2024 Luan Ferreira. Todos os direitos reservados.
+              © 2025 Luan Ferreira. Todos os direitos reservados.
             </div>
           </div>
         </div>
       </footer>
+      <WhatsAppFloatingButton />
     </div>
   )
 }
