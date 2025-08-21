@@ -29,7 +29,7 @@ function PhotoUpload({ onUploadSuccess }) {
     const loadWorks = async () => {
       try {
         const token = localStorage.getItem('adminToken')
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+        const API_URL = import.meta.env.VITE_API_URL || 'https://photography-api-e6oq.onrender.com'
         const response = await fetch(`${API_URL}/api/works`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
@@ -79,7 +79,7 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('is_featured', isFeatured)
 
       const token = localStorage.getItem("adminToken")
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const API_URL = import.meta.env.VITE_API_URL || 'https://photography-api-e6oq.onrender.com'
       const response = await fetch(`${API_URL}/api/photos`, {
         method: "POST",
         headers: {

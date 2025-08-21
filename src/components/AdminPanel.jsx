@@ -104,18 +104,39 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
     // Carregar estatísticas
     const loadStats = async () => {
       try {
+        const isProd = import.meta.env.PROD || process.env.NODE_ENV === 'production'
+        const API_URL = isProd 
+          ? 'https://photography-api-e6oq.onrender.com' 
+          : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+        
+        console.log('Carregando stats - ENV:', import.meta.env.MODE, 'URL:', API_URL)
+
         // Estatísticas de fotos
-        const photosResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`)
+        const photosResponse = await fetch(`${API_URL}/api/photos`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
         let photosData = []
         if (photosResponse.ok) {
           photosData = await photosResponse.json()
+        } else {
+          console.error('Erro ao carregar fotos:', photosResponse.status)
         }
 
         // Estatísticas de trabalhos
-        const worksResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/works`)
+        const worksResponse = await fetch(`${API_URL}/api/works`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
         let worksData = []
         if (worksResponse.ok) {
           worksData = await worksResponse.json()
+        } else {
+          console.error('Erro ao carregar works:', worksResponse.status)
         }
 
         setStats({
