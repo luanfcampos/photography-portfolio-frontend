@@ -1,3 +1,4 @@
+import { API_CONFIG, apiRequest } from '../config/api'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -72,13 +73,8 @@ function WorkManager({ refreshTrigger }) {
     if (!confirm('Tem certeza que deseja deletar este trabalho?')) return
 
     try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/works/${workId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await apiRequest(`${API_CONFIG.ENDPOINTS.WORKS}/${workId}`, {
+        method: 'DELETE'
       })
 
       if (response.ok) {
