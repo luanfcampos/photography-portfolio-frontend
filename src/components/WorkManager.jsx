@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Folder, Edit, Trash2, Star, Eye, Plus, Image } from 'lucide-react'
+import { Folder, Edit, Trash2, Star, Eye, Plus, Image, Loader2 } from 'lucide-react'
 
 function WorkManager({ refreshTrigger }) {
   const [works, setWorks] = useState([])
@@ -98,11 +98,16 @@ function WorkManager({ refreshTrigger }) {
 
   if (loading) {
     return (
-      <Card className="w-full">
-        <CardContent className="p-6">
-          <div className="text-center">Carregando trabalhos...</div>
-        </CardContent>
-      </Card>
+      <div className="min-h-screen p-6">
+        <Card className="w-full bg-gray-800/80 backdrop-blur-sm border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center space-x-3 text-white">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Carregando trabalhos...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -120,7 +125,7 @@ function WorkManager({ refreshTrigger }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <CreateWorkForm className="text-gray-300" categories={categories} onSubmit={handleCreateWork} />
+          <CreateWorkForm categories={categories} onSubmit={handleCreateWork} />
         </CardContent>
       </Card>
 
@@ -137,13 +142,13 @@ function WorkManager({ refreshTrigger }) {
         </CardHeader>
         <CardContent>
           {works.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Folder className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Nenhum trabalho encontrado</p>
-              <p className="text-sm">Crie seu primeiro trabalho para começar</p>
+            <div className="text-center py-12">
+              <Folder className="h-16 w-16 mx-auto mb-4 text-gray-500" />
+              <p className="text-gray-400 text-lg mb-2">Nenhum trabalho encontrado</p>
+              <p className="text-gray-500 text-sm">Crie seu primeiro trabalho para começar</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {works.map((work) => (
                 <WorkCard 
                   key={work.id} 
@@ -159,13 +164,13 @@ function WorkManager({ refreshTrigger }) {
 
       {/* Fotos sem Trabalho */}
       {getPhotosWithoutWork().length > 0 && (
-        <Card className="w-full">
+        <Card className="w-full bg-gray-800/80 backdrop-blur-sm border-gray-700">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
+            <CardTitle className="flex items-center space-x-2 text-white">
               <Image className="h-5 w-5" />
               <span>Fotos sem Trabalho ({getPhotosWithoutWork().length})</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-gray-300">
               Fotos que ainda não foram associadas a nenhum trabalho
             </CardDescription>
           </CardHeader>
@@ -176,9 +181,9 @@ function WorkManager({ refreshTrigger }) {
                   <img 
                     src={photo.url} 
                     alt={photo.title} 
-                    className="w-full h-20 object-cover rounded border"
+                    className="w-full h-20 object-cover rounded border border-gray-600 transition-transform duration-300 group-hover:scale-105"
                     onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
+                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23374151"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%239CA3AF">Erro</text></svg>'
                     }}
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
@@ -230,27 +235,27 @@ function CreateWorkForm({ categories, onSubmit }) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label className="text-gray-300" htmlFor="work-title">Título do Trabalho</Label>
+          <Label htmlFor="work-title" className="text-white">Título do Trabalho</Label>
           <Input
-          className="text-gray-300 border-gray-300 "
             id="work-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Ex: Ensaio Primavera 2024"
             required
             disabled={isSubmitting}
+            className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="work-category">Categoria</Label>
+          <Label htmlFor="work-category" className="text-white">Categoria</Label>
           <Select value={categoryId} onValueChange={setCategoryId} disabled={isSubmitting}>
-            <SelectTrigger>
+            <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-500">
               <SelectValue placeholder="Selecione uma categoria" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-gray-700 border-gray-600">
               {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id.toString()}>
+                <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
                   {category.name}
                 </SelectItem>
               ))}
@@ -260,35 +265,45 @@ function CreateWorkForm({ categories, onSubmit }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="work-description">Descrição</Label>
+        <Label htmlFor="work-description" className="text-white">Descrição</Label>
         <Textarea
           id="work-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Descreva o trabalho..."
           disabled={isSubmitting}
-          className="min-h-20"
+          className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 min-h-20"
         />
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 p-3 bg-gray-700/30 rounded-lg">
         <input
           type="checkbox"
           id="work-featured"
           checked={isFeatured}
           onChange={(e) => setIsFeatured(e.target.checked)}
           disabled={isSubmitting}
-          className="rounded border-gray-300"
+          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
         />
-        <Label htmlFor="work-featured">Trabalho em destaque</Label>
+        <Label htmlFor="work-featured" className="text-white font-medium">Trabalho em destaque</Label>
       </div>
 
       <Button 
         onClick={handleSubmit}
         disabled={isSubmitting || !title.trim()}
-        className="w-full"
+        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold"
       >
-        {isSubmitting ? 'Criando...' : 'Criar Trabalho'}
+        {isSubmitting ? (
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Criando...</span>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-2">
+            <Plus className="h-4 w-4" />
+            <span>Criar Trabalho</span>
+          </div>
+        )}
       </Button>
     </div>
   )
@@ -296,73 +311,75 @@ function CreateWorkForm({ categories, onSubmit }) {
 
 function WorkCard({ work, photos, onDelete }) {
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-      <div className="relative">
+    <div className="bg-gray-700/50 backdrop-blur-sm border border-gray-600 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
+      <div className="relative overflow-hidden">
         {work.cover_photo_url ? (
           <img 
             src={work.cover_photo_url} 
             alt={work.title} 
-            className="w-full h-32 object-cover"
+            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
             onError={(e) => {
-              e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
+              e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23374151"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%239CA3AF">Erro</text></svg>'
             }}
           />
         ) : (
-          <div className="w-full h-32 bg-gray-200 flex items-center justify-center">
-            <Folder className="h-8 w-8 text-gray-400" />
+          <div className="w-full h-48 bg-gray-600/50 flex items-center justify-center">
+            <Folder className="h-16 w-16 text-gray-400" />
           </div>
         )}
         {work.is_featured && (
-          <Badge className="absolute top-2 left-2 bg-yellow-500 hover:bg-yellow-600">
+          <Badge className="absolute top-3 left-3 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold">
             <Star className="h-3 w-3 mr-1" />
             Destaque
           </Badge>
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
 
       <div className="p-4">
-        <h3 className="font-medium truncate text-gray-900">{work.title}</h3>
+        <h3 className="font-semibold text-white truncate mb-1">{work.title}</h3>
         {work.description && (
-          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{work.description}</p>
+          <p className="text-sm text-gray-300 mb-3 line-clamp-2 leading-relaxed">{work.description}</p>
         )}
 
-        <div className="flex items-center justify-between mt-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs border-gray-500 text-gray-300 bg-gray-600/30">
               {work.category_name || 'Sem categoria'}
             </Badge>
-            <span className="text-xs text-gray-500">{photos.length} fotos</span>
+            <span className="text-xs text-gray-400">{photos.length} fotos</span>
           </div>
 
-          <div className="flex space-x-1">
+          <div className="flex space-x-2">
             <Dialog>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                <Button size="sm" variant="outline" className="h-8 w-8 p-0 border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white">
                   <Eye className="h-3 w-3" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl bg-gray-800 border-gray-700">
                 <DialogHeader>
-                  <DialogTitle>{work.title}</DialogTitle>
-                  <DialogDescription>{work.description}</DialogDescription>
+                  <DialogTitle className="text-white">{work.title}</DialogTitle>
+                  <DialogDescription className="text-gray-300">{work.description}</DialogDescription>
                 </DialogHeader>
                 {photos.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                  <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto bg-gray-900/50 p-4 rounded-lg">
                     {photos.map((photo) => (
                       <img 
                         key={photo.id}
                         src={photo.url} 
                         alt={photo.title} 
-                        className="w-full h-20 object-cover rounded"
+                        className="w-full h-20 object-cover rounded border border-gray-600 hover:scale-105 transition-transform duration-200"
                         onError={(e) => {
-                          e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Erro</text></svg>'
+                          e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23374151"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%239CA3AF">Erro</text></svg>'
                         }}
                       />
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <p>Nenhuma foto neste trabalho</p>
+                  <div className="text-center py-8 bg-gray-900/50 rounded-lg">
+                    <Folder className="h-12 w-12 mx-auto mb-2 text-gray-500" />
+                    <p className="text-gray-400">Nenhuma foto neste trabalho</p>
                   </div>
                 )}
               </DialogContent>
@@ -372,7 +389,7 @@ function WorkCard({ work, photos, onDelete }) {
               size="sm" 
               variant="outline" 
               onClick={() => onDelete(work.id)} 
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="h-8 w-8 p-0 border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
             >
               <Trash2 className="h-3 w-3" />
             </Button>
