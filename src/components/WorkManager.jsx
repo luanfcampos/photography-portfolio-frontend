@@ -21,11 +21,7 @@ function WorkManager({ refreshTrigger }) {
 
   const loadWorks = async () => {
     try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/works`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.WORKS)
       if (response.ok) {
         const worksData = await response.json()
         setWorks(worksData)
@@ -37,11 +33,7 @@ function WorkManager({ refreshTrigger }) {
 
   const loadPhotos = async () => {
     try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/photos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS)
       if (response.ok) {
         const photosData = await response.json()
         setPhotos(photosData)
@@ -60,14 +52,8 @@ function WorkManager({ refreshTrigger }) {
 
   const handleCreateWork = async (workData) => {
     try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/works`, {
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.WORKS, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(workData)
       })
 
@@ -87,7 +73,7 @@ function WorkManager({ refreshTrigger }) {
 
     try {
       const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+      const API_URL = process.env.01'
       const response = await fetch(`${API_URL}/api/works/${workId}`, {
         method: 'DELETE',
         headers: {

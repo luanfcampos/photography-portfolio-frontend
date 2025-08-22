@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Camera, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { apiRequest, API_CONFIG } from '../config/api'
 
 function Login() {
   const [username, setUsername] = useState('')
@@ -18,15 +19,11 @@ function Login() {
   const isProd = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD) || process.env.NODE_ENV === 'production'
 
   const getApiUrl = () => {
-    if (isProd) return 'https://photography-api-e6oq.onrender.com/api/auth/login'
-    const base = import.meta?.env?.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:3001'
-    return `${base}/api/auth/login`
+    return `${API_CONFIG.BASE_URL}/api/auth/login`
   }
 
   const getHealthUrl = () => {
-    if (isProd) return 'https://photography-api-e6oq.onrender.com/api/health'
-    const base = import.meta?.env?.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:3001'
-    return `${base}/api/health`
+    return `${API_CONFIG.BASE_URL}/api/health`
   }
 
   const testServerConnection = async () => {

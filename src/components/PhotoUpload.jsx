@@ -28,21 +28,7 @@ function PhotoUpload({ onUploadSuccess }) {
   useEffect(() => {
     const loadWorks = async () => {
       try {
-        const token = localStorage.getItem('adminToken')
-        const isProd = import.meta.env.PROD || process.env.NODE_ENV === 'production'
-        const API_URL = isProd 
-          ? 'https://photography-api-e6oq.onrender.com' 
-          : (import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:3001')
-        
-        console.log('Carregando works - ENV:', import.meta.env.MODE, 'URL:', API_URL)
-        
-        const response = await fetch(`${API_URL}/api/works`, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await apiRequest(API_CONFIG.ENDPOINTS.WORKS)
         if (response.ok) {
           const worksData = await response.json()
           setWorks(worksData)
@@ -53,7 +39,7 @@ function PhotoUpload({ onUploadSuccess }) {
         console.error('Erro ao carregar trabalhos:', error)
       }
     }
-
+    
     loadWorks()
   }, [])
 
@@ -72,6 +58,7 @@ function PhotoUpload({ onUploadSuccess }) {
     }
   }
 
+  // Função handleUpload atualizada
   const handleUpload = async () => {
     if (!selectedFile) {
       setUploadStatus({ type: 'error', message: 'Selecione uma foto primeiro' })
@@ -90,20 +77,8 @@ function PhotoUpload({ onUploadSuccess }) {
       formData.append('work_id', workId && workId !== 'none' ? workId : '')
       formData.append('is_featured', isFeatured)
 
-      const token = localStorage.getItem("adminToken")
-      const isProd = import.meta.env.PROD || process.env.NODE_ENV === 'production'
-      const API_URL = isProd 
-        ? 'https://photography-api-e6oq.onrender.com' 
-        : (import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:3001')
-      
-      console.log('Upload - ENV:', import.meta.env.MODE, 'URL:', API_URL)
-      
-      const response = await fetch(`${API_URL}/api/photos`, {
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Accept": "application/json"
-        },
         body: formData
       })
 
@@ -113,7 +88,6 @@ function PhotoUpload({ onUploadSuccess }) {
       }
 
       const result = await response.json()
-
       setUploadStatus({ type: 'success', message: 'Foto enviada com sucesso!' })
       
       // Limpar formulário
@@ -126,9 +100,9 @@ function PhotoUpload({ onUploadSuccess }) {
 
     } catch (error) {
       console.error('Erro no upload:', error)
-      setUploadStatus({ 
-        type: 'error', 
-        message: error.message || 'Erro de conexão com o servidor' 
+      setUploadStatus({
+        type: 'error',
+        message: error.message || 'Erro de conexão com o servidor'
       })
     } finally {
       setIsUploading(false)

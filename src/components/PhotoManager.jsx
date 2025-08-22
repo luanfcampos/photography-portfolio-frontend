@@ -21,11 +21,7 @@ function PhotoManager({ refreshTrigger }) {
 
   const loadPhotos = async () => {
     try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/photos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS)
       if (response.ok) {
         const photosData = await response.json()
         setPhotos(photosData)
@@ -45,13 +41,8 @@ function PhotoManager({ refreshTrigger }) {
     if (!confirm('Tem certeza que deseja deletar esta foto?')) return
 
     try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/photos/${photoId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await apiRequest(`${API_CONFIG.ENDPOINTS.PHOTOS}/${photoId}`, {
+        method: 'DELETE'
       })
 
       if (response.ok) {
@@ -67,14 +58,8 @@ function PhotoManager({ refreshTrigger }) {
 
   const handleUpdate = async (photoData) => {
     try {
-      const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/photos/${photoData.id}`, {
+       const response = await apiRequest(`${API_CONFIG.ENDPOINTS.PHOTOS}/${photoData.id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(photoData)
       })
 
