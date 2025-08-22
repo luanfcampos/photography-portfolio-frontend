@@ -73,7 +73,7 @@ function WorkManager({ refreshTrigger }) {
 
     try {
       const token = localStorage.getItem('adminToken')
-      const API_URL = process.env.01'
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'
       const response = await fetch(`${API_URL}/api/works/${workId}`, {
         method: 'DELETE',
         headers: {
