@@ -16,7 +16,7 @@ function WorkManager({ refreshTrigger }) {
   const [loading, setLoading] = useState(true)
   const [categories] = useState([
     { id: 1, name: 'Ensaios' },
-    { id: 2, name: 'Produtos' },
+    { id: 2, name: 'Shows e Espetáculos' },
     { id: 3, name: 'Eventos' }
   ])
 

@@ -389,8 +389,8 @@ function Portfolio() {
                     
                     {/* ✅ Indicador melhorado de tipo */}
                     {photo.work_id && (
-                      <div className="absolute top-2 left-2 bg-blue-500/80 text-white text-xs px-2 py-1 rounded-full">
-                        🎯 Trabalho #{photo.work_id}
+                      <div className="absolute top-2 left-2 bg-blue-500/80 text-white text-xs px-2 py-1 rounded-full">                        
+                        {photo.work_id ? work[photo.work_id] : photo.title}
                       </div>
                     )}
                     
@@ -480,7 +480,7 @@ function Portfolio() {
             <div>
               <h2 className="text-4xl font-bold text-gray-900 mb-6">Sobre Mim</h2>
               <p className="text-lg text-gray-600 mb-6">
-                Sou um fotógrafo movido pela missão de transformar momentos em memórias eternas. Com mais de seis anos de experiência, dedico-me a criar imagens autênticas e cheias de significado, seja em ensaios fotográficos ou na fotografia de produtos.
+                Sou um fotógrafo movido pela missão de transformar momentos em memórias eternas. Com mais de seis anos de experiência, dedico-me a criar imagens autênticas e cheias de significado, seja em ensaios fotográficos ou na fotografia de Shows e Espetáculos.
               </p>
               <p className="text-lg text-gray-600 mb-8">
                 Minha abordagem vai além do registro: busco contar histórias, revelar emoções e capturar a essência única de cada pessoa, objeto ou situação. Acredito que uma boa fotografia não só documenta um instante, mas também evoca sentimentos e cria laços que permanecem no tempo.

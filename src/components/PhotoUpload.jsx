@@ -20,7 +20,7 @@ function PhotoUpload({ onUploadSuccess }) {
   const [uploadStatus, setUploadStatus] = useState(null)
   const [categories] = useState([
     { id: 1, name: 'Ensaios' },
-    { id: 2, name: 'Produtos' },
+    { id: 2, name: 'Shows e Espetáculos' },
     { id: 3, name: 'Eventos' }
   ])
   const [works, setWorks] = useState([])
