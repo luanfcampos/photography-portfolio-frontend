@@ -23,7 +23,7 @@ function Portfolio() {
       setError(null)
       
       try {
-        console.log('🔄 Carregando dados da API:', API_CONFIG.BASE_URL);
+        console.log('📄 Carregando dados da API:', API_CONFIG.BASE_URL);
         
         // Carregar trabalhos
         const worksResponse = await apiRequest(API_CONFIG.ENDPOINTS.WORKS);
@@ -41,7 +41,7 @@ function Portfolio() {
               title: work.title,
               url: work.cover_photo_url,
               category_slug: work.category_slug,
-              work_id: work.id,
+              work_id: work.id, // ✅ Garantir que work_id está definido
               photo_count: work.photo_count || 0,
               type: 'work' // Identificar como trabalho
             }));
@@ -90,23 +90,23 @@ function Portfolio() {
         setError(error.message);
 
         // Fallback para dados locais caso a API falhe
-        console.log('🔄 Usando dados de fallback...');
+        console.log('📄 Usando dados de fallback...');
         const fallbackPhotos = [
           {
             id: 'fallback-1',
             title: 'Ensaio Natural',
-            url: aboutImage, // Usar a imagem importada
+            url: aboutImage,
             category_slug: 'ensaios',
-            work_id: null,
-            type: 'fallback'
+            work_id: 1, // ✅ Adicionar work_id para fallback também
+            type: 'work' // ✅ Definir como work para funcionar a navegação
           },
           {
             id: 'fallback-2',
             title: 'Fotografia Profissional',
-            url: aboutImage, // Usar a imagem importada
+            url: aboutImage,
             category_slug: 'retratos',
-            work_id: null,
-            type: 'fallback'
+            work_id: 2, // ✅ Adicionar work_id para fallback também
+            type: 'work' // ✅ Definir como work para funcionar a navegação
           }
         ];
         
@@ -146,13 +146,27 @@ function Portfolio() {
   }
 
   const openWorkGallery = (photo) => {
-    console.log('🖼️ Abrindo galeria para:', photo);
+    console.log('🖼️ Tentando abrir galeria para:', photo);
+    console.log('🔍 Photo details:', {
+      id: photo.id,
+      work_id: photo.work_id,
+      type: photo.type,
+      title: photo.title
+    });
     
-    // Se for um trabalho, navegar para a galeria do trabalho
-    if (photo.work_id && photo.type === 'work') {
-      navigate(`/work/${photo.work_id}`)
+    // ✅ Verificação melhorada - trabalhar com work_id se existir
+    if (photo.work_id) {
+      console.log('🚀 Navegando para work gallery:', photo.work_id);
+      try {
+        navigate(`/work/${photo.work_id}`)
+      } catch (navError) {
+        console.error('❌ Erro na navegação:', navError);
+        // Fallback para modal
+        setSelectedImage(photo)
+      }
     } else {
-      // Fallback para modal se não houver work_id ou for foto individual
+      console.log('📱 Abrindo modal (sem work_id)');
+      // Fallback para modal se não houver work_id
       setSelectedImage(photo)
     }
   }
@@ -259,16 +273,17 @@ function Portfolio() {
             </p>
           </div>
 
-          {/* Debug Info - Remover em produção */}
+          {/* Debug Info - Melhorado */}
           {import.meta.env.DEV && (
             <div className="mb-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-700">
-              <p><strong>🐛 Debug Info:</strong></p>
+              <p><strong>🛠 Debug Info:</strong></p>
               <p>API URL: {API_CONFIG.BASE_URL}</p>
               <p>Loading: {loading ? 'Sim' : 'Não'}</p>
               <p>Error: {error || 'Nenhum'}</p>
               <p>Total Photos: {photos.length}</p>
               <p>Filtered Photos: {filteredPhotos.length}</p>
               <p>Categories: {categories.join(', ') || 'Nenhuma'}</p>
+              <p>Photos with work_id: {photos.filter(p => p.work_id).length}</p>
             </div>
           )}
 
@@ -335,7 +350,10 @@ function Portfolio() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.3 }}
                   className="group cursor-pointer"
-                  onClick={() => openWorkGallery(photo)}
+                  onClick={() => {
+                    console.log('🖱️ Clique na foto:', photo);
+                    openWorkGallery(photo);
+                  }}
                 >
                   <div className="relative overflow-hidden rounded-lg aspect-square bg-gray-100">
                     <img
@@ -369,10 +387,10 @@ function Portfolio() {
                       </div>
                     )}
                     
-                    {/* Indicador de tipo */}
-                    {photo.type === 'work' && (
+                    {/* ✅ Indicador melhorado de tipo */}
+                    {photo.work_id && (
                       <div className="absolute top-2 left-2 bg-blue-500/80 text-white text-xs px-2 py-1 rounded-full">
-                        Trabalho
+                        🎯 Trabalho #{photo.work_id}
                       </div>
                     )}
                     
@@ -380,7 +398,7 @@ function Portfolio() {
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <h3 className="text-white font-medium">{photo.title}</h3>
                       <p className="text-white/80 text-sm">
-                        {photo.type === 'work' ? 'Clique para ver galeria completa' : 'Clique para ampliar'}
+                        {photo.work_id ? 'Clique para ver galeria completa' : 'Clique para ampliar'}
                       </p>
                     </div>
                   </div>
@@ -444,6 +462,12 @@ function Portfolio() {
             {/* Título da imagem */}
             <div className="absolute bottom-4 left-4 text-white">
               <h3 className="text-lg font-semibold">{selectedImage.title}</h3>
+              {/* ✅ Info adicional para debug */}
+              {import.meta.env.DEV && (
+                <p className="text-sm text-gray-300">
+                  ID: {selectedImage.id} | Work ID: {selectedImage.work_id || 'N/A'} | Type: {selectedImage.type}
+                </p>
+              )}
             </div>
           </motion.div>
         </div>
