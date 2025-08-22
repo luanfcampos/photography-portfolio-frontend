@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, X, ChevronLeft, ChevronRight, Camera } from 'lucide-react'
+import { API_CONFIG, apiRequest } from '../config/api'
 
 function WorkGallery() {
   const { id } = useParams()
@@ -10,26 +11,63 @@ function WorkGallery() {
   const [photos, setPhotos] = useState([])
   const [selectedImage, setSelectedImage] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const loadWorkData = async () => {
+      setLoading(true)
+      setError(null)
+      
       try {
+        console.log('🔄 Carregando dados do trabalho ID:', id);
+        console.log('🌐 Usando API:', API_CONFIG.BASE_URL);
+
         // Carregar dados do trabalho
-        const worksResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/works`)
+        const worksResponse = await apiRequest(API_CONFIG.ENDPOINTS.WORKS)
         if (worksResponse.ok) {
           const works = await worksResponse.json()
+          console.log('✅ Trabalhos carregados:', works);
+          
           const currentWork = works.find(w => w.id === parseInt(id))
-          setWork(currentWork)
+          console.log('🎯 Trabalho encontrado:', currentWork);
+          
+          if (currentWork) {
+            setWork(currentWork)
+          } else {
+            throw new Error(`Trabalho com ID ${id} não encontrado`)
+          }
+        } else {
+          throw new Error('Falha ao carregar lista de trabalhos')
         }
 
         // Carregar fotos do trabalho
-        const photosResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/works/${id}/photos`)
-        if (photosResponse.ok) {
-          const photosData = await photosResponse.json()
-          setPhotos(photosData)
+        try {
+          const photosResponse = await apiRequest(`${API_CONFIG.ENDPOINTS.WORKS}/${id}/photos`)
+          if (photosResponse.ok) {
+            const photosData = await photosResponse.json()
+            console.log('📸 Fotos do trabalho carregadas:', photosData);
+            setPhotos(photosData)
+          } else {
+            // Se não houver endpoint específico, tentar carregar todas as fotos e filtrar
+            console.log('⚠️ Endpoint específico falhou, tentando filtrar todas as fotos...');
+            const allPhotosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS)
+            if (allPhotosResponse.ok) {
+              const allPhotos = await allPhotosResponse.json()
+              const workPhotos = allPhotos.filter(photo => photo.work_id === parseInt(id))
+              console.log('📸 Fotos filtradas do trabalho:', workPhotos);
+              setPhotos(workPhotos)
+            } else {
+              throw new Error('Falha ao carregar fotos do trabalho')
+            }
+          }
+        } catch (photoError) {
+          console.error('❌ Erro ao carregar fotos:', photoError);
+          // Continuar mesmo se não conseguir carregar fotos
+          setPhotos([])
         }
       } catch (error) {
-        console.error('Erro ao carregar dados do trabalho:', error)
+        console.error('❌ Erro detalhado ao carregar trabalho:', error)
+        setError(error.message)
       } finally {
         setLoading(false)
       }
@@ -74,6 +112,25 @@ function WorkGallery() {
     )
   }
 
+  if (error && !work) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <p className="font-bold">❌ Erro ao carregar trabalho</p>
+            <p className="text-sm">{error}</p>
+          </div>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Voltar ao Portfólio
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -99,6 +156,18 @@ function WorkGallery() {
       {/* Conteúdo Principal */}
       <main className="pt-20 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Debug Info - Remover em produção */}
+          {import.meta.env.DEV && (
+            <div className="mb-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-700">
+              <p><strong>🐛 Debug Info:</strong></p>
+              <p>API URL: {API_CONFIG.BASE_URL}</p>
+              <p>Work ID: {id}</p>
+              <p>Work Found: {work ? 'Sim' : 'Não'}</p>
+              <p>Photos Count: {photos.length}</p>
+              <p>Error: {error || 'Nenhum'}</p>
+            </div>
+          )}
+
           {/* Cabeçalho do Trabalho */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -123,7 +192,15 @@ function WorkGallery() {
           {photos.length === 0 ? (
             <div className="text-center py-12">
               <Camera className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhuma foto encontrada neste trabalho.</p>
+              <p className="text-gray-500 mb-4">
+                {error ? 'Erro ao carregar fotos deste trabalho.' : 'Nenhuma foto encontrada neste trabalho.'}
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Voltar ao portfólio principal
+              </button>
             </div>
           ) : (
             <motion.div 
@@ -137,21 +214,41 @@ function WorkGallery() {
                   key={photo.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
                   className="group cursor-pointer"
                   onClick={() => openModal(photo)}
                 >
-                  <div className="relative overflow-hidden rounded-lg aspect-square">
+                  <div className="relative overflow-hidden rounded-lg aspect-square bg-gray-100">
                     <img
                       src={photo.url}
                       alt={photo.title}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      onLoad={() => console.log('✅ Imagem carregada:', photo.url)}
+                      onError={(e) => {
+                        console.error('❌ Erro ao carregar imagem:', photo.url);
+                        // Placeholder mais elegante
+                        e.target.style.display = 'none';
+                        const placeholder = e.target.parentElement.querySelector('.placeholder');
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
+                      }}
                     />
+                    
+                    {/* Placeholder para erro de carregamento */}
+                    <div className="placeholder absolute inset-0 bg-gray-200 flex-col items-center justify-center text-gray-500 hidden">
+                      <Camera className="h-8 w-8 mb-2" />
+                      <p className="text-xs text-center px-2">Erro ao carregar</p>
+                    </div>
+                    
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
                     
                     {/* Título da foto no hover */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <h3 className="text-white font-medium text-sm">{photo.title}</h3>
+                      {photo.description && (
+                        <p className="text-white/80 text-xs mt-1 line-clamp-2">{photo.description}</p>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -168,42 +265,46 @@ function WorkGallery() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="relative max-w-4xl max-h-full"
+            className="relative max-w-5xl max-h-full"
           >
             <img
               src={selectedImage.url}
               alt={selectedImage.title}
               className="max-w-full max-h-full object-contain"
+              onError={(e) => {
+                console.error('❌ Erro ao carregar imagem no modal:', selectedImage.url);
+                // Manter a imagem mesmo com erro para permitir tentar novamente
+              }}
             />
             
             {/* Controles do Modal */}
             <button
               onClick={closeModal}
-              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors bg-black/50 rounded-full p-2"
             >
-              <X className="h-8 w-8" />
+              <X className="h-6 w-6" />
             </button>
             
             {photos.length > 1 && (
               <>
                 <button
                   onClick={() => navigateImage('prev')}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors bg-black/50 rounded-full p-2"
                 >
-                  <ChevronLeft className="h-8 w-8" />
+                  <ChevronLeft className="h-6 w-6" />
                 </button>
                 
                 <button
                   onClick={() => navigateImage('next')}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors bg-black/50 rounded-full p-2"
                 >
-                  <ChevronRight className="h-8 w-8" />
+                  <ChevronRight className="h-6 w-6" />
                 </button>
               </>
             )}
             
             {/* Informações da imagem */}
-            <div className="absolute bottom-4 left-4 text-white">
+            <div className="absolute bottom-4 left-4 text-white bg-black/50 rounded-lg p-3 max-w-md">
               <h3 className="text-lg font-semibold">{selectedImage.title}</h3>
               {selectedImage.description && (
                 <p className="text-sm text-gray-300 mt-1">{selectedImage.description}</p>
@@ -211,10 +312,18 @@ function WorkGallery() {
             </div>
             
             {/* Contador de fotos */}
-            <div className="absolute bottom-4 right-4 text-white text-sm">
-              {photos.findIndex(p => p.id === selectedImage.id) + 1} / {photos.length}
+            <div className="absolute bottom-4 right-4 text-white bg-black/50 rounded-lg px-3 py-2">
+              <span className="text-sm">
+                {photos.findIndex(p => p.id === selectedImage.id) + 1} / {photos.length}
+              </span>
             </div>
           </motion.div>
+          
+          {/* Clique fora para fechar */}
+          <div 
+            className="absolute inset-0 -z-10" 
+            onClick={closeModal}
+          />
         </div>
       )}
     </div>
@@ -222,4 +331,3 @@ function WorkGallery() {
 }
 
 export default WorkGallery
-

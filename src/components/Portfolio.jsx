@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Camera, Mail, Instagram, Facebook, Twitter, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { API_CONFIG, apiRequest } from '../config/api'
 import WhatsAppFloatingButton from './WhatsAppFloatingButton'
 import aboutImage from '../assets/portrait1.jpg';
 
@@ -13,72 +14,104 @@ function Portfolio() {
   const [works, setWorks] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
-
- 
+  const [error, setError] = useState(null)
 
   // Carregar fotos e trabalhos da API
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true)
+      setError(null)
+      
       try {
+        console.log('🔄 Carregando dados da API:', API_CONFIG.BASE_URL);
+        
         // Carregar trabalhos
-        const worksResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/works`);
+        const worksResponse = await apiRequest(API_CONFIG.ENDPOINTS.WORKS);
+        
         if (worksResponse.ok) {
           const worksData = await worksResponse.json();
+          console.log('✅ Trabalhos carregados:', worksData);
           setWorks(worksData);
           
           // Usar a foto de capa de cada trabalho para a galeria principal
           const workPhotos = worksData
             .filter(work => work.cover_photo_url)
             .map(work => ({
-              id: work.id,
+              id: `work-${work.id}`, // Prefixo para evitar conflito de IDs
               title: work.title,
               url: work.cover_photo_url,
               category_slug: work.category_slug,
               work_id: work.id,
-              photo_count: work.photo_count || 0
+              photo_count: work.photo_count || 0,
+              type: 'work' // Identificar como trabalho
             }));
           
-          setPhotos(workPhotos);
-
-          // Extrair categorias únicas dos trabalhos
-          const uniqueCategories = [
-            ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
-          ];
-          setCategories(uniqueCategories);
-        } else {
-          // Fallback: carregar fotos individuais se não houver trabalhos
-          const photosResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/photos`);
-          if (photosResponse.ok) {
-            const photosData = await photosResponse.json();
-            setPhotos(photosData);
-
+          console.log('📸 Fotos dos trabalhos:', workPhotos);
+          
+          // Se não há trabalhos com capa, tentar carregar fotos individuais
+          if (workPhotos.length === 0) {
+            console.log('⚠️ Nenhum trabalho com capa encontrado, carregando fotos individuais...');
+            const photosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS);
+            
+            if (photosResponse.ok) {
+              const photosData = await photosResponse.json();
+              console.log('✅ Fotos individuais carregadas:', photosData);
+              
+              const individualPhotos = photosData.map(photo => ({
+                ...photo,
+                id: `photo-${photo.id}`, // Prefixo para evitar conflito
+                type: 'photo' // Identificar como foto individual
+              }));
+              
+              setPhotos(individualPhotos);
+              
+              const uniqueCategories = [
+                ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
+              ];
+              setCategories(uniqueCategories);
+            } else {
+              throw new Error('Falha ao carregar fotos individuais');
+            }
+          } else {
+            setPhotos(workPhotos);
+            
+            // Extrair categorias únicas dos trabalhos
             const uniqueCategories = [
-              ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
+              ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
             ];
+            console.log('🏷️ Categorias encontradas:', uniqueCategories);
             setCategories(uniqueCategories);
           }
+        } else {
+          throw new Error('Falha ao carregar trabalhos');
         }
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error('❌ Erro detalhado ao carregar dados:', error);
+        setError(error.message);
 
         // Fallback para dados locais caso a API falhe
-        setPhotos([
+        console.log('🔄 Usando dados de fallback...');
+        const fallbackPhotos = [
           {
-            id: 1,
+            id: 'fallback-1',
             title: 'Ensaio Natural',
-            url: '/src/assets/portrait1.jpg',
+            url: aboutImage, // Usar a imagem importada
             category_slug: 'ensaios',
-            work_id: 1
+            work_id: null,
+            type: 'fallback'
           },
           {
-            id: 2,
-            title: 'Produto Elegante',
-            url: '/src/assets/landscape1.jpg',
-            category_slug: 'produtos',
-            work_id: 2
+            id: 'fallback-2',
+            title: 'Fotografia Profissional',
+            url: aboutImage, // Usar a imagem importada
+            category_slug: 'retratos',
+            work_id: null,
+            type: 'fallback'
           }
-        ]);
-        setCategories(['ensaios', 'produtos']);
+        ];
+        
+        setPhotos(fallbackPhotos);
+        setCategories(['ensaios', 'retratos']);
       } finally {
         setLoading(false);
       }
@@ -87,11 +120,23 @@ function Portfolio() {
     loadData();
   }, []);
 
+  // Log para debug
+  useEffect(() => {
+    console.log('📊 Estado atual:');
+    console.log('- API Base URL:', API_CONFIG.BASE_URL);
+    console.log('- Loading:', loading);
+    console.log('- Error:', error);
+    console.log('- Photos:', photos);
+    console.log('- Categories:', categories);
+    console.log('- Active Filter:', activeFilter);
+  }, [loading, error, photos, categories, activeFilter]);
 
   // Filtrar fotos baseado no filtro ativo
   const filteredPhotos = activeFilter === 'todos' 
     ? photos 
     : photos.filter(photo => photo.category_slug === activeFilter)
+
+  console.log('🔍 Fotos filtradas:', filteredPhotos);
 
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId)
@@ -101,10 +146,13 @@ function Portfolio() {
   }
 
   const openWorkGallery = (photo) => {
-    if (photo.work_id) {
+    console.log('🖼️ Abrindo galeria para:', photo);
+    
+    // Se for um trabalho, navegar para a galeria do trabalho
+    if (photo.work_id && photo.type === 'work') {
       navigate(`/work/${photo.work_id}`)
     } else {
-      // Fallback para modal se não houver work_id
+      // Fallback para modal se não houver work_id ou for foto individual
       setSelectedImage(photo)
     }
   }
@@ -211,9 +259,22 @@ function Portfolio() {
             </p>
           </div>
 
+          {/* Debug Info - Remover em produção */}
+          {import.meta.env.DEV && (
+            <div className="mb-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-700">
+              <p><strong>🐛 Debug Info:</strong></p>
+              <p>API URL: {API_CONFIG.BASE_URL}</p>
+              <p>Loading: {loading ? 'Sim' : 'Não'}</p>
+              <p>Error: {error || 'Nenhum'}</p>
+              <p>Total Photos: {photos.length}</p>
+              <p>Filtered Photos: {filteredPhotos.length}</p>
+              <p>Categories: {categories.join(', ') || 'Nenhuma'}</p>
+            </div>
+          )}
+
           {/* Filtros */}
           <div className="flex justify-center mb-12">
-            <div className="flex space-x-2 bg-gray-100 p-1 rounded-full">
+            <div className="flex flex-wrap justify-center gap-2 bg-gray-100 p-1 rounded-full">
               <button
                 onClick={() => setActiveFilter('todos')}
                 className={`px-6 py-2 rounded-full transition-all ${
@@ -222,21 +283,24 @@ function Portfolio() {
                     : 'text-gray-600 hover:text-black'
                 }`}
               >
-                Todos
+                Todos ({photos.length})
               </button>
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setActiveFilter(category)}
-                  className={`px-6 py-2 rounded-full transition-all capitalize ${
-                    activeFilter === category
-                      ? 'bg-black text-white'
-                      : 'text-gray-600 hover:text-black'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+              {categories.map((category) => {
+                const categoryCount = photos.filter(photo => photo.category_slug === category).length;
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setActiveFilter(category)}
+                    className={`px-6 py-2 rounded-full transition-all capitalize ${
+                      activeFilter === category
+                        ? 'bg-black text-white'
+                        : 'text-gray-600 hover:text-black'
+                    }`}
+                  >
+                    {category} ({categoryCount})
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -246,7 +310,18 @@ function Portfolio() {
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
               <p className="mt-4 text-gray-600">Carregando fotos...</p>
             </div>
-          ) : (
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 max-w-md mx-auto">
+                <p className="font-bold">⚠️ Problema de conexão com a API</p>
+                <p className="text-sm">{error}</p>
+                <p className="text-sm mt-2">Exibindo dados de exemplo.</p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Grid sempre exibe, mesmo com erro (usando fallback) */}
+          {!loading && (
             <motion.div 
               layout
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
@@ -262,25 +337,51 @@ function Portfolio() {
                   className="group cursor-pointer"
                   onClick={() => openWorkGallery(photo)}
                 >
-                  <div className="relative overflow-hidden rounded-lg aspect-square">
+                  <div className="relative overflow-hidden rounded-lg aspect-square bg-gray-100">
                     <img
                       src={photo.url}
                       alt={photo.title}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      onLoad={() => console.log('✅ Imagem carregada:', photo.url)}
+                      onError={(e) => {
+                        console.error('❌ Erro ao carregar imagem:', photo.url);
+                        // Placeholder mais elegante
+                        e.target.style.display = 'none';
+                        const placeholder = e.target.parentElement.querySelector('.placeholder');
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
+                      }}
                     />
+                    
+                    {/* Placeholder para erro de carregamento */}
+                    <div className="placeholder absolute inset-0 bg-gray-200 flex-col items-center justify-center text-gray-500 hidden">
+                      <Camera className="h-12 w-12 mb-2" />
+                      <p className="text-sm text-center px-2">Erro ao carregar imagem</p>
+                    </div>
+                    
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
                     
                     {/* Indicador de número de fotos */}
                     {photo.photo_count && photo.photo_count > 1 && (
                       <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-                        {photo.photo_count} fotos
+                        📷 {photo.photo_count} fotos
+                      </div>
+                    )}
+                    
+                    {/* Indicador de tipo */}
+                    {photo.type === 'work' && (
+                      <div className="absolute top-2 left-2 bg-blue-500/80 text-white text-xs px-2 py-1 rounded-full">
+                        Trabalho
                       </div>
                     )}
                     
                     {/* Título no hover */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <h3 className="text-white font-medium">{photo.title}</h3>
-                      <p className="text-white/80 text-sm">Clique para ver galeria completa</p>
+                      <p className="text-white/80 text-sm">
+                        {photo.type === 'work' ? 'Clique para ver galeria completa' : 'Clique para ampliar'}
+                      </p>
                     </div>
                   </div>
                 </motion.div>
@@ -292,6 +393,12 @@ function Portfolio() {
             <div className="text-center py-12">
               <Camera className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">Nenhuma foto encontrada nesta categoria.</p>
+              <button
+                onClick={() => setActiveFilter('todos')}
+                className="mt-4 text-blue-600 hover:text-blue-800 underline"
+              >
+                Ver todas as fotos
+              </button>
             </div>
           )}
         </div>
@@ -413,7 +520,6 @@ function Portfolio() {
                   <a href="https://www.instagram.com/luanferreira.foto/" className="text-gray-600 hover:text-black transition-colors">
                     <Instagram className="h-6 w-6" />
                   </a>
-                  
                 </div>
               </div>
             </div>
@@ -480,7 +586,6 @@ function Portfolio() {
               <a href="https://www.instagram.com/luanferreira.foto/" className="text-gray-400 hover:text-white transition-colors">
                 <Instagram className="h-5 w-5" />
               </a>
-              
             </div>
             <div className="mt-8 pt-8 border-t border-gray-800 text-gray-400 text-sm">
               © 2025 Luan Ferreira. Todos os direitos reservados.
@@ -494,4 +599,3 @@ function Portfolio() {
 }
 
 export default Portfolio
-
