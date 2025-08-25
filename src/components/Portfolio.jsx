@@ -15,24 +15,34 @@ function Portfolio() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  })
+  const [formStatus, setFormStatus] = useState({
+    isSubmitting: false,
+    success: null,
+    error: null
+  })
 
   // Carregar fotos e trabalhos da API
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       setError(null)
-      
+
       try {
         console.log('📄 Carregando dados da API:', API_CONFIG.BASE_URL);
-        
+
         // Carregar trabalhos
         const worksResponse = await apiRequest(API_CONFIG.ENDPOINTS.WORKS);
-        
+
         if (worksResponse.ok) {
           const worksData = await worksResponse.json();
           console.log('✅ Trabalhos carregados:', worksData);
           setWorks(worksData);
-          
+
           // Usar a foto de capa de cada trabalho para a galeria principal
           const workPhotos = worksData
             .filter(work => work.cover_photo_url)
@@ -45,26 +55,26 @@ function Portfolio() {
               photo_count: work.photo_count || 0,
               type: 'work' // Identificar como trabalho
             }));
-          
+
           console.log('📸 Fotos dos trabalhos:', workPhotos);
-          
+
           // Se não há trabalhos com capa, tentar carregar fotos individuais
           if (workPhotos.length === 0) {
             console.log('⚠️ Nenhum trabalho com capa encontrado, carregando fotos individuais...');
             const photosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS);
-            
+
             if (photosResponse.ok) {
               const photosData = await photosResponse.json();
               console.log('✅ Fotos individuais carregadas:', photosData);
-              
+
               const individualPhotos = photosData.map(photo => ({
                 ...photo,
                 id: `photo-${photo.id}`, // Prefixo para evitar conflito
                 type: 'photo' // Identificar como foto individual
               }));
-              
+
               setPhotos(individualPhotos);
-              
+
               const uniqueCategories = [
                 ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
               ];
@@ -74,7 +84,7 @@ function Portfolio() {
             }
           } else {
             setPhotos(workPhotos);
-            
+
             // Extrair categorias únicas dos trabalhos
             const uniqueCategories = [
               ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
@@ -109,7 +119,7 @@ function Portfolio() {
             type: 'work' // ✅ Definir como work para funcionar a navegação
           }
         ];
-        
+
         setPhotos(fallbackPhotos);
         setCategories(['ensaios', 'retratos']);
       } finally {
@@ -132,8 +142,8 @@ function Portfolio() {
   }, [loading, error, photos, categories, activeFilter]);
 
   // Filtrar fotos baseado no filtro ativo
-  const filteredPhotos = activeFilter === 'todos' 
-    ? photos 
+  const filteredPhotos = activeFilter === 'todos'
+    ? photos
     : photos.filter(photo => photo.category_slug === activeFilter)
 
   console.log('🔍 Fotos filtradas:', filteredPhotos);
@@ -153,7 +163,7 @@ function Portfolio() {
       type: photo.type,
       title: photo.title
     });
-    
+
     // ✅ Verificação melhorada - trabalhar com work_id se existir
     if (photo.work_id) {
       console.log('🚀 Navegando para work gallery:', photo.work_id);
@@ -177,17 +187,56 @@ function Portfolio() {
 
   const navigateImage = (direction) => {
     if (!selectedImage) return
-    
+
     const currentIndex = filteredPhotos.findIndex(photo => photo.id === selectedImage.id)
     let newIndex
-    
+
     if (direction === 'next') {
       newIndex = (currentIndex + 1) % filteredPhotos.length
     } else {
       newIndex = currentIndex === 0 ? filteredPhotos.length - 1 : currentIndex - 1
     }
-    
+
     setSelectedImage(filteredPhotos[newIndex])
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setFormStatus({ isSubmitting: true, success: null, error: null })
+
+    try {
+      const response = await apiRequest('/api/contact', {
+        method: 'POST',
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        setFormStatus({
+          isSubmitting: false,
+          success: 'Mensagem enviada com sucesso!',
+          error: null
+        })
+        setFormData({ name: '', email: '', message: '' })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Falha ao enviar mensagem')
+      }
+    } catch (error) {
+      console.error('❌ Erro ao enviar mensagem:', error)
+      setFormStatus({
+        isSubmitting: false,
+        success: null,
+        error: error.message || 'Falha ao enviar mensagem'
+      })
+    }
   }
 
   return (
@@ -200,27 +249,27 @@ function Portfolio() {
               <Camera className="h-8 w-8 text-black" />
               <span className="text-xl font-bold text-black">Luan Ferreira</span>
             </div>
-            
+
             <div className="hidden md:flex space-x-8">
-              <button 
+              <button
                 onClick={() => scrollToSection('home')}
                 className="text-gray-700 hover:text-black transition-colors"
               >
                 Home
               </button>
-              <button 
+              <button
                 onClick={() => scrollToSection('galeria')}
                 className="text-gray-700 hover:text-black transition-colors"
               >
                 Galeria
               </button>
-              <button 
+              <button
                 onClick={() => scrollToSection('sobre')}
                 className="text-gray-700 hover:text-black transition-colors"
               >
                 Sobre
               </button>
-              <button 
+              <button
                 onClick={() => scrollToSection('contato')}
                 className="text-gray-700 hover:text-black transition-colors"
               >
@@ -235,7 +284,7 @@ function Portfolio() {
       <section id="home" className="relative h-screen flex items-center justify-center bg-[url('/src/assets/portrait2.jpg')] bg-center text-white">
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -243,7 +292,7 @@ function Portfolio() {
           >
             Capturando Momentos
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -337,7 +386,7 @@ function Portfolio() {
 
           {/* Grid sempre exibe, mesmo com erro (usando fallback) */}
           {!loading && (
-            <motion.div 
+            <motion.div
               layout
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
@@ -371,29 +420,22 @@ function Portfolio() {
                         }
                       }}
                     />
-                    
+
                     {/* Placeholder para erro de carregamento */}
                     <div className="placeholder absolute inset-0 bg-gray-200 flex-col items-center justify-center text-gray-500 hidden">
                       <Camera className="h-12 w-12 mb-2" />
                       <p className="text-sm text-center px-2">Erro ao carregar imagem</p>
                     </div>
-                    
+
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
-                    
+
                     {/* Indicador de número de fotos */}
                     {photo.photo_count && photo.photo_count > 1 && (
                       <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
                         📷 {photo.photo_count} fotos
                       </div>
                     )}
-                    
-                    {/* ✅ Indicador melhorado de tipo */}
-                    {photo.work_id && (
-                      <div className="absolute top-2 left-2 bg-blue-500/80 text-white text-xs px-2 py-1 rounded-full">                        
-                        {photo.work_id ? work[photo.work_id] : photo.title}
-                      </div>
-                    )}
-                    
+
                     {/* Título no hover */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <h3 className="text-white font-medium">{photo.title}</h3>
@@ -436,7 +478,7 @@ function Portfolio() {
               alt={selectedImage.title}
               className="max-w-full max-h-full object-contain"
             />
-            
+
             {/* Controles do Modal */}
             <button
               onClick={closeModal}
@@ -444,21 +486,21 @@ function Portfolio() {
             >
               <X className="h-8 w-8" />
             </button>
-            
+
             <button
               onClick={() => navigateImage('prev')}
               className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
             >
               <ChevronLeft className="h-8 w-8" />
             </button>
-            
+
             <button
               onClick={() => navigateImage('next')}
               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
             >
               <ChevronRight className="h-8 w-8" />
             </button>
-            
+
             {/* Título da imagem */}
             <div className="absolute bottom-4 left-4 text-white">
               <h3 className="text-lg font-semibold">{selectedImage.title}</h3>
@@ -549,7 +591,7 @@ function Portfolio() {
             </div>
 
             <div>
-              <form className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                     Nome
@@ -557,8 +599,12 @@ function Portfolio() {
                   <input
                     type="text"
                     id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                     placeholder="Seu Nome"
+                    required
                   />
                 </div>
                 <div>
@@ -568,8 +614,12 @@ function Portfolio() {
                   <input
                     type="email"
                     id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                     placeholder="seu@email.com"
+                    required
                   />
                 </div>
                 <div>
@@ -578,18 +628,35 @@ function Portfolio() {
                   </label>
                   <textarea
                     id="message"
+                    name="message"
+                    value={formData.message}
+                    onChange={handleInputChange}
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                     placeholder="Conte-me sobre seu projeto..."
+                    required
                   ></textarea>
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 transition-colors"
+                  disabled={formStatus.isSubmitting}
+                  className="w-full bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Enviar Mensagem
+                  {formStatus.isSubmitting ? 'Enviando...' : 'Enviar Mensagem'}
                 </button>
               </form>
+
+              {formStatus.success && (
+                <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+                  {formStatus.success}
+                </div>
+              )}
+
+              {formStatus.error && (
+                <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                  {formStatus.error}
+                </div>
+              )}
             </div>
           </div>
         </div>
