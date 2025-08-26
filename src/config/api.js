@@ -39,16 +39,16 @@ export const API_CONFIG = {
 export const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem('adminToken')
   const url = `${API_CONFIG.BASE_URL}${endpoint}`
- 
+
   const defaultHeaders = {
     'Accept': 'application/json',
     'Content-Type': 'application/json'
   }
- 
+
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
   }
- 
+
   const config = {
     ...options,
     headers: {
@@ -56,24 +56,33 @@ export const apiRequest = async (endpoint, options = {}) => {
       ...options.headers
     }
   }
- 
+
   // Para FormData, remover Content-Type para deixar o browser definir
   if (options.body instanceof FormData) {
     delete config.headers['Content-Type']
   }
- 
+
   console.log(`🌐 Fazendo requisição para: ${url}`)
- 
+  console.log('📤 Dados enviados:', options.body)
+
   try {
     const response = await fetch(url, config)
-   
+
+    console.log(`📥 Resposta recebida: ${response.status} ${response.statusText}`)
+    if (import.meta.env.DEV) {
+      const responseClone = response.clone();
+      const responseData = await responseClone.json();
+      console.log('📋 Dados da resposta:', responseData);
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
         error: `HTTP ${response.status} - ${response.statusText}`
       }))
+      console.error('❌ Erro na resposta:', errorData)
       throw new Error(errorData.error || `Erro HTTP ${response.status}`)
     }
-   
+
     return response
   } catch (error) {
     console.error(`❌ Erro na requisição para ${url}:`, error)

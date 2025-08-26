@@ -6,18 +6,19 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Upload, X, CheckCircle, AlertCircle, Loader2, ImagePlus } from 'lucide-react'
+import { Upload, X, CheckCircle, AlertCircle, Loader2, ImagePlus, Image, Trash2, Edit3 } from 'lucide-react'
 
 function PhotoUpload({ onUploadSuccess }) {
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [preview, setPreview] = useState(null)
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  const [workId, setWorkId] = useState('')
-  const [isFeatured, setIsFeatured] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState([])
+  const [previews, setPreviews] = useState([])
+  const [globalSettings, setGlobalSettings] = useState({
+    categoryId: '',
+    workId: '',
+    isFeatured: false
+  })
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState({})
   const [categories] = useState([
     { id: 1, name: 'Ensaios' },
     { id: 2, name: 'Shows e Espetáculos' },
@@ -45,65 +46,167 @@ function PhotoUpload({ onUploadSuccess }) {
   }, [])
 
   const handleFileSelect = (event) => {
-    const file = event.target.files[0]
-    if (file) {
-      setSelectedFile(file)
-      setTitle(file.name.split('.')[0]) // Nome sem extensão como título padrão
-      
-      // Criar preview
+    const files = Array.from(event.target.files)
+    if (files.length === 0) return
+
+    const newFiles = files.map((file, index) => ({
+      id: Date.now() + index,
+      file: file,
+      title: file.name.split('.')[0],
+      description: '',
+      categoryId: globalSettings.categoryId,
+      workId: globalSettings.workId,
+      isFeatured: false
+    }))
+
+    setSelectedFiles(prev => [...prev, ...newFiles])
+
+    // Criar previews
+    files.forEach((file, index) => {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setPreview(e.target.result)
+        const fileId = Date.now() + index
+        setPreviews(prev => [...prev, {
+          id: fileId,
+          url: e.target.result,
+          name: file.name
+        }])
       }
       reader.readAsDataURL(file)
-    }
+    })
   }
 
-  // Função handleUpload atualizada
+  const updateFileSettings = (fileId, field, value) => {
+    setSelectedFiles(prev => 
+      prev.map(file => 
+        file.id === fileId 
+          ? { ...file, [field]: value }
+          : file
+      )
+    )
+  }
+
+  const removeFile = (fileId) => {
+    setSelectedFiles(prev => prev.filter(file => file.id !== fileId))
+    setPreviews(prev => prev.filter(preview => preview.id !== fileId))
+  }
+
+  const applyGlobalSettings = () => {
+    setSelectedFiles(prev => 
+      prev.map(file => ({
+        ...file,
+        categoryId: globalSettings.categoryId || file.categoryId,
+        workId: globalSettings.workId || file.workId,
+        isFeatured: globalSettings.isFeatured
+      }))
+    )
+  }
+
   const handleUpload = async () => {
-    if (!selectedFile) {
-      setUploadStatus({ type: 'error', message: 'Selecione uma foto primeiro' })
+    if (selectedFiles.length === 0) {
+      setUploadStatus({ type: 'error', message: 'Selecione pelo menos uma foto' })
       return
     }
 
     setIsUploading(true)
     setUploadStatus(null)
+    setUploadProgress({})
+
+    const results = {
+      success: [],
+      failed: []
+    }
 
     try {
-      const formData = new FormData()
-      formData.append('photo', selectedFile)
-      formData.append('title', title)
-      formData.append('description', description)
-      formData.append('category_id', categoryId && categoryId !== 'none' ? categoryId : '')
-      formData.append('work_id', workId && workId !== 'none' ? workId : '')
-      formData.append('is_featured', isFeatured)
+      // Upload sequencial para evitar sobrecarga
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const fileData = selectedFiles[i]
+        
+        setUploadProgress(prev => ({
+          ...prev,
+          [fileData.id]: { status: 'uploading', progress: 0 }
+        }))
 
-      const response = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS, {
-        method: "POST",
-        body: formData
-      })
+        try {
+          const formData = new FormData()
+          formData.append('photo', fileData.file)
+          formData.append('title', fileData.title)
+          formData.append('description', fileData.description)
+          formData.append('category_id', fileData.categoryId && fileData.categoryId !== 'none' ? fileData.categoryId : '')
+          formData.append('work_id', fileData.workId && fileData.workId !== 'none' ? fileData.workId : '')
+          formData.append('is_featured', fileData.isFeatured)
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
-        throw new Error(errorData.error || `HTTP ${response.status}`)
+          const response = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS, {
+            method: "POST",
+            body: formData
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
+            throw new Error(errorData.error || `HTTP ${response.status}`)
+          }
+
+          const result = await response.json()
+          results.success.push({ ...result, originalTitle: fileData.title })
+          
+          setUploadProgress(prev => ({
+            ...prev,
+            [fileData.id]: { status: 'success', progress: 100 }
+          }))
+
+        } catch (error) {
+          console.error(`Erro no upload da foto ${fileData.title}:`, error)
+          results.failed.push({ 
+            title: fileData.title, 
+            error: error.message 
+          })
+          
+          setUploadProgress(prev => ({
+            ...prev,
+            [fileData.id]: { status: 'error', progress: 0 }
+          }))
+        }
       }
 
-      const result = await response.json()
-      setUploadStatus({ type: 'success', message: 'Foto enviada com sucesso!' })
-      
-      // Limpar formulário
-      clearForm()
-      
-      // Callback para atualizar lista de fotos
-      if (onUploadSuccess) {
-        onUploadSuccess(result)
+      // Mostrar resultado final
+      if (results.success.length > 0 && results.failed.length === 0) {
+        setUploadStatus({ 
+          type: 'success', 
+          message: `${results.success.length} fotos enviadas com sucesso!` 
+        })
+      } else if (results.success.length > 0 && results.failed.length > 0) {
+        setUploadStatus({ 
+          type: 'warning', 
+          message: `${results.success.length} fotos enviadas com sucesso, ${results.failed.length} falharam.` 
+        })
+      } else {
+        setUploadStatus({ 
+          type: 'error', 
+          message: `Falha no envio de ${results.failed.length} fotos.` 
+        })
+      }
+
+      // Callback para atualizar lista de fotos se houver sucessos
+      if (results.success.length > 0 && onUploadSuccess) {
+        onUploadSuccess(results.success)
+      }
+
+      // Limpar apenas as fotos que foram enviadas com sucesso
+      if (results.success.length > 0) {
+        const successIds = results.success.map((_, index) => {
+          // Encontrar o ID da foto que foi enviada com sucesso
+          return selectedFiles[index]?.id
+        }).filter(Boolean)
+        
+        setSelectedFiles(prev => prev.filter(file => !successIds.includes(file.id)))
+        setPreviews(prev => prev.filter(preview => !successIds.includes(preview.id)))
       }
 
     } catch (error) {
-      console.error('Erro no upload:', error)
+      console.error('Erro geral no upload:', error)
       setUploadStatus({
         type: 'error',
-        message: error.message || 'Erro de conexão com o servidor'
+        message: 'Erro de conexão com o servidor'
       })
     } finally {
       setIsUploading(false)
@@ -111,18 +214,19 @@ function PhotoUpload({ onUploadSuccess }) {
   }
 
   const clearForm = () => {
-    setSelectedFile(null)
-    setPreview(null)
-    setTitle('')
-    setDescription('')
-    setCategoryId('')
-    setWorkId('')
-    setIsFeatured(false)
+    setSelectedFiles([])
+    setPreviews([])
+    setGlobalSettings({
+      categoryId: '',
+      workId: '',
+      isFeatured: false
+    })
     setUploadStatus(null)
+    setUploadProgress({})
   }
 
-  const clearSelection = () => {
-    clearForm()
+  const getPreview = (fileId) => {
+    return previews.find(p => p.id === fileId)
   }
 
   return (
@@ -130,21 +234,25 @@ function PhotoUpload({ onUploadSuccess }) {
       <CardHeader>
         <CardTitle className="flex items-center space-x-2 text-white">
           <Upload className="h-5 w-5" />
-          <span>Upload de Foto</span>
+          <span>Upload de Fotos</span>
         </CardTitle>
         <CardDescription className="text-gray-300">
-          Adicione uma nova foto ao seu portfólio
+          Adicione múltiplas fotos ao seu portfólio de uma vez
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {uploadStatus && (
           <div className={`flex items-center space-x-2 p-4 rounded-lg border ${
             uploadStatus.type === 'success' 
-              ? 'bg-green-900/50 border-green-500 text-green-200' 
+              ? 'bg-green-900/50 border-green-500 text-green-200'
+              : uploadStatus.type === 'warning'
+              ? 'bg-yellow-900/50 border-yellow-500 text-yellow-200'
               : 'bg-red-900/50 border-red-500 text-red-200'
           }`}>
             {uploadStatus.type === 'success' ? (
               <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+            ) : uploadStatus.type === 'warning' ? (
+              <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0" />
             ) : (
               <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
             )}
@@ -153,139 +261,260 @@ function PhotoUpload({ onUploadSuccess }) {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="photo-upload" className="text-white">Selecionar Foto</Label>
+          <Label htmlFor="photo-upload" className="text-white">Selecionar Fotos</Label>
           <div className="relative">
             <Input
               id="photo-upload"
               type="file"
               accept="image/*"
+              multiple
               onChange={handleFileSelect}
               disabled={isUploading}
               className="bg-gray-700/50 border-gray-600 text-white file:bg-blue-600 file:border-0 file:text-white file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-blue-700 focus:border-blue-500 focus:ring-blue-500"
             />
             <ImagePlus className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
+          <p className="text-sm text-gray-400">Selecione múltiplas fotos mantendo Ctrl/Cmd pressionado</p>
         </div>
 
-        {preview && (
-          <div className="relative">
-            <div className="relative bg-gray-900 rounded-lg p-4 border border-gray-600">
-              <img
-                src={preview}
-                alt="Preview"
-                className="w-full max-h-64 object-contain rounded-lg"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearSelection}
-                className="absolute top-2 right-2 bg-red-600 border-red-500 text-white hover:bg-red-700 h-8 w-8 p-0"
-                disabled={isUploading}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+        {selectedFiles.length > 0 && (
+          <div className="space-y-6">
+            {/* Configurações Globais */}
+            <Card className="bg-gray-700/30 border-gray-600">
+              <CardHeader>
+                <CardTitle className="text-white text-lg">Configurações Globais</CardTitle>
+                <CardDescription className="text-gray-300">
+                  Configure valores padrão para todas as fotos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="global-category" className="text-white">Categoria Padrão</Label>
+                    <Select value={globalSettings.categoryId} onValueChange={(value) => setGlobalSettings(prev => ({...prev, categoryId: value}))}>
+                      <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white">
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-700 border-gray-600">
+                        <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhuma categoria</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-        {selectedFile && (
-          <div className="space-y-4 bg-gray-700/30 p-6 rounded-lg border border-gray-600">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title" className="text-white">Título</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Título da foto"
-                  disabled={isUploading}
-                  className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                />
+                  <div className="space-y-2">
+                    <Label htmlFor="global-work" className="text-white">Trabalho Padrão</Label>
+                    <Select value={globalSettings.workId} onValueChange={(value) => setGlobalSettings(prev => ({...prev, workId: value}))}>
+                      <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white">
+                        <SelectValue placeholder="Selecione um trabalho" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-700 border-gray-600">
+                        <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhum trabalho</SelectItem>
+                        {works.map((work) => (
+                          <SelectItem key={work.id} value={work.id.toString()} className="text-white hover:bg-gray-600">
+                            {work.title} ({work.category_name})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 bg-gray-600/30 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="global-featured"
+                    checked={globalSettings.isFeatured}
+                    onChange={(e) => setGlobalSettings(prev => ({...prev, isFeatured: e.target.checked}))}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                  />
+                  <Label htmlFor="global-featured" className="text-white font-medium">
+                    Marcar todas como destaque
+                  </Label>
+                </div>
+
+                <Button
+                  onClick={applyGlobalSettings}
+                  variant="outline"
+                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  Aplicar Configurações a Todas as Fotos
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Lista de Fotos Selecionadas */}
+            <div className="space-y-4">
+              <h3 className="text-white font-semibold text-lg">
+                Fotos Selecionadas ({selectedFiles.length})
+              </h3>
+              
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {selectedFiles.map((fileData, index) => {
+                  const preview = getPreview(fileData.id)
+                  const progress = uploadProgress[fileData.id]
+                  
+                  return (
+                    <Card key={fileData.id} className="bg-gray-700/50 border-gray-600">
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          {/* Preview da Imagem */}
+                          <div className="relative flex-shrink-0">
+                            {preview && (
+                              <img
+                                src={preview.url}
+                                alt={fileData.title}
+                                className="w-20 h-20 object-cover rounded-lg border border-gray-600"
+                              />
+                            )}
+                            
+                            {/* Status do Upload */}
+                            {progress && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                                {progress.status === 'uploading' && (
+                                  <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+                                )}
+                                {progress.status === 'success' && (
+                                  <CheckCircle className="h-6 w-6 text-green-400" />
+                                )}
+                                {progress.status === 'error' && (
+                                  <AlertCircle className="h-6 w-6 text-red-400" />
+                                )}
+                              </div>
+                            )}
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removeFile(fileData.id)}
+                              disabled={isUploading}
+                              className="absolute -top-2 -right-2 h-6 w-6 p-0 bg-red-600 border-red-500 text-white hover:bg-red-700"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          {/* Configurações da Foto */}
+                          <div className="flex-1 space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-white text-sm">Título</Label>
+                                <Input
+                                  value={fileData.title}
+                                  onChange={(e) => updateFileSettings(fileData.id, 'title', e.target.value)}
+                                  disabled={isUploading}
+                                  className="bg-gray-700/50 border-gray-600 text-white text-sm h-8"
+                                  placeholder="Título da foto"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-white text-sm">Categoria</Label>
+                                <Select 
+                                  value={fileData.categoryId} 
+                                  onValueChange={(value) => updateFileSettings(fileData.id, 'categoryId', value)}
+                                  disabled={isUploading}
+                                >
+                                  <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white text-sm h-8">
+                                    <SelectValue placeholder="Categoria" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-gray-700 border-gray-600">
+                                    <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhuma</SelectItem>
+                                    {categories.map((category) => (
+                                      <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
+                                        {category.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-white text-sm">Descrição</Label>
+                              <Textarea
+                                value={fileData.description}
+                                onChange={(e) => updateFileSettings(fileData.id, 'description', e.target.value)}
+                                disabled={isUploading}
+                                className="bg-gray-700/50 border-gray-600 text-white text-sm min-h-16"
+                                placeholder="Descrição da foto"
+                              />
+                            </div>
+
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  id={`featured-${fileData.id}`}
+                                  checked={fileData.isFeatured}
+                                  onChange={(e) => updateFileSettings(fileData.id, 'isFeatured', e.target.checked)}
+                                  disabled={isUploading}
+                                  className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded"
+                                />
+                                <Label htmlFor={`featured-${fileData.id}`} className="text-white text-sm">
+                                  Destaque
+                                </Label>
+                              </div>
+
+                              <div className="flex-1">
+                                <Select 
+                                  value={fileData.workId} 
+                                  onValueChange={(value) => updateFileSettings(fileData.id, 'workId', value)}
+                                  disabled={isUploading}
+                                >
+                                  <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white text-sm h-8">
+                                    <SelectValue placeholder="Trabalho" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-gray-700 border-gray-600">
+                                    <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhum</SelectItem>
+                                    {works.map((work) => (
+                                      <SelectItem key={work.id} value={work.id.toString()} className="text-white hover:bg-gray-600">
+                                        {work.title}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category" className="text-white">Categoria</Label>
-                <Select value={categoryId} onValueChange={setCategoryId} disabled={isUploading}>
-                  <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-500">
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-white">Descrição</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descrição da foto (opcional)"
-                disabled={isUploading}
-                className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 min-h-20"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="work" className="text-white">Trabalho (Opcional)</Label>
-              <Select value={workId} onValueChange={setWorkId} disabled={isUploading}>
-                <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-500">
-                  <SelectValue placeholder="Selecione um trabalho" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-gray-600">
-                  <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhum trabalho</SelectItem>
-                  {works.map((work) => (
-                    <SelectItem key={work.id} value={work.id.toString()} className="text-white hover:bg-gray-600">
-                      {work.title} ({work.category_name})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center space-x-2 p-3 bg-gray-600/30 rounded-lg">
-              <input
-                type="checkbox"
-                id="featured"
-                checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
-                disabled={isUploading}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-              />
-              <Label htmlFor="featured" className="text-white font-medium">Foto em destaque</Label>
-            </div>
-
-            <div className="flex space-x-3 pt-4">
+            {/* Botões de Ação */}
+            <div className="flex space-x-3 pt-4 border-t border-gray-600">
               <Button
                 onClick={handleUpload}
-                disabled={isUploading || !title.trim()}
+                disabled={isUploading || selectedFiles.some(f => !f.title.trim())}
                 className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold"
               >
                 {isUploading ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Enviando...</span>
+                    <span>Enviando {selectedFiles.length} fotos...</span>
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
                     <Upload className="h-4 w-4" />
-                    <span>Enviar Foto</span>
+                    <span>Enviar {selectedFiles.length} Fotos</span>
                   </div>
                 )}
               </Button>
               <Button
                 variant="outline"
-                onClick={clearSelection}
+                onClick={clearForm}
                 disabled={isUploading}
                 className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
               >
-                Cancelar
+                Limpar Tudo
               </Button>
             </div>
           </div>

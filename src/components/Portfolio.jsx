@@ -209,33 +209,58 @@ function Portfolio() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setFormStatus({ isSubmitting: true, success: null, error: null })
+    e.preventDefault();
+    setFormStatus({ isSubmitting: true, success: null, error: null });
 
     try {
+      console.log('📤 Enviando mensagem de contato:', formData);
+
+      // Validação adicional
+      if (!formData.name || !formData.email || !formData.message) {
+        throw new Error('Todos os campos são obrigatórios');
+      }
+
+      // Validação de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        throw new Error('Por favor, insira um email válido');
+      }
+
       const response = await apiRequest('/api/contact', {
         method: 'POST',
         body: JSON.stringify(formData)
-      })
+      });
 
       if (response.ok) {
+        const responseData = await response.json();
+        console.log('✅ Resposta do servidor:', responseData);
+
+        // Limpar formulário e mostrar mensagem de sucesso
         setFormStatus({
           isSubmitting: false,
-          success: 'Mensagem enviada com sucesso!',
+          success: responseData.message || 'Mensagem enviada com sucesso!',
           error: null
-        })
-        setFormData({ name: '', email: '', message: '' })
+        });
+        setFormData({ name: '', email: '', message: '' });
+
+        // Adicionar log de sucesso
+        console.log('✅ Mensagem enviada com sucesso:', responseData);
       } else {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Falha ao enviar mensagem')
+        const errorData = await response.json();
+        console.error('❌ Erro do servidor:', errorData);
+
+        // Lançar erro com mensagem do servidor ou padrão
+        throw new Error(errorData.error || 'Falha ao enviar mensagem');
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error)
+      console.error('❌ Erro ao enviar mensagem:', error);
+
+      // Atualizar estado com mensagem de erro
       setFormStatus({
         isSubmitting: false,
         success: null,
         error: error.message || 'Falha ao enviar mensagem'
-      })
+      });
     }
   }
 
@@ -648,13 +673,35 @@ function Portfolio() {
 
               {formStatus.success && (
                 <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-                  {formStatus.success}
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>{formStatus.success}</span>
+                  </div>
+                  {import.meta.env.DEV && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      <p>Dados enviados:</p>
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(formData, null, 2)}</pre>
+                    </div>
+                  )}
                 </div>
               )}
 
               {formStatus.error && (
                 <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                  {formStatus.error}
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>{formStatus.error}</span>
+                  </div>
+                  {import.meta.env.DEV && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      <p>Dados enviados:</p>
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(formData, null, 2)}</pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

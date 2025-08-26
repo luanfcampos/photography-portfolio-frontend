@@ -33,3 +33,4 @@ Thumbs.db
 # Cache do pacote
 .cache/
 .pnp.*
+.aider*
