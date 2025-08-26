@@ -20,7 +20,7 @@ import {
   Loader2, 
   ChevronDown, 
   ChevronRight,
-  Grid3x3,
+  LayoutGrid,
   List,
   Move,
   Settings
@@ -217,7 +217,7 @@ function WorkManager({ refreshTrigger }) {
                 onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
                 className="border-gray-600 text-gray-300 hover:bg-gray-700"
               >
-                {viewMode === 'list' ? <Grid3x3 className="h-4 w-4" /> : <List className="h-4 w-4" />}
+                {viewMode === 'list' ? <LayoutGrid className="h-4 w-4" /> : <List className="h-4 w-4" />}
               </Button>
               <Button
                 variant="outline"
