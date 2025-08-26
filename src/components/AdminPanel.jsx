@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { Camera, LogOut, Home, Upload, Image, BarChart3, Folder, Loader2 } from 'lucide-react'
+import { Camera, LogOut, Home, Upload, BarChart3, Folder, Loader2 } from 'lucide-react'
 import PhotoUpload from './PhotoUpload'
-import PhotoManager from './PhotoManager'
 import WorkManager from './WorkManager'
 
 function AdminPanel() {
@@ -30,7 +29,7 @@ function AdminPanel() {
   }
 
   const handleUploadSuccess = () => {
-    // Trigger refresh da lista de fotos
+    // Trigger refresh da lista de fotos e trabalhos
     setRefreshTrigger(prev => prev + 1)
   }
 
@@ -96,7 +95,8 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
     totalPhotos: 0,
     featuredPhotos: 0,
     categories: 0,
-    totalWorks: 0
+    totalWorks: 0,
+    photosWithoutWork: 0
   })
   const [loading, setLoading] = useState(true)
 
@@ -139,11 +139,14 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
           console.error('Erro ao carregar works:', worksResponse.status)
         }
 
+        const photosWithoutWork = photosData.filter(photo => !photo.work_id).length
+
         setStats({
           totalPhotos: photosData.length,
           featuredPhotos: photosData.filter(p => p.is_featured).length,
           categories: new Set(photosData.map(p => p.category_name).filter(Boolean)).size,
-          totalWorks: worksData.length
+          totalWorks: worksData.length,
+          photosWithoutWork: photosWithoutWork
         })
       } catch (error) {
         console.error('Erro ao carregar estatísticas:', error)
@@ -157,12 +160,12 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
 
   return (
     <div className="space-y-6">
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Estatísticas Atualizadas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="bg-gray-800/80 backdrop-blur-sm border-gray-700 hover:bg-gray-800/90 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-300">Total de Fotos</CardTitle>
-            <Image className="h-4 w-4 text-blue-400" />
+            <Camera className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
@@ -170,22 +173,6 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
                 <div className="animate-pulse bg-gray-600 h-8 w-12 rounded"></div>
               ) : (
                 stats.totalPhotos
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-800/80 backdrop-blur-sm border-gray-700 hover:bg-gray-800/90 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Fotos em Destaque</CardTitle>
-            <BarChart3 className="h-4 w-4 text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              {loading ? (
-                <div className="animate-pulse bg-gray-600 h-8 w-12 rounded"></div>
-              ) : (
-                stats.featuredPhotos
               )}
             </div>
           </CardContent>
@@ -209,8 +196,41 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
 
         <Card className="bg-gray-800/80 backdrop-blur-sm border-gray-700 hover:bg-gray-800/90 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">Fotos em Destaque</CardTitle>
+            <BarChart3 className="h-4 w-4 text-yellow-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">
+              {loading ? (
+                <div className="animate-pulse bg-gray-600 h-8 w-12 rounded"></div>
+              ) : (
+                stats.featuredPhotos
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800/80 backdrop-blur-sm border-gray-700 hover:bg-gray-800/90 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">Sem Trabalho</CardTitle>
+            <Camera className="h-4 w-4 text-orange-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">
+              {loading ? (
+                <div className="animate-pulse bg-gray-600 h-8 w-12 rounded"></div>
+              ) : (
+                stats.photosWithoutWork
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">fotos desorganizadas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800/80 backdrop-blur-sm border-gray-700 hover:bg-gray-800/90 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-300">Categorias</CardTitle>
-            <Camera className="h-4 w-4 text-purple-400" />
+            <Folder className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
@@ -220,13 +240,14 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
                 stats.categories
               )}
             </div>
+            <p className="text-xs text-gray-400 mt-1">categorias ativas</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs principais */}
+      {/* Tabs Simplificadas */}
       <Tabs defaultValue="upload" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-gray-800/80 border-gray-700">
+        <TabsList className="grid w-full grid-cols-2 bg-gray-800/80 border-gray-700">
           <TabsTrigger 
             value="upload" 
             className="flex items-center space-x-2 text-gray-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
@@ -235,31 +256,50 @@ function Dashboard({ onUploadSuccess, refreshTrigger }) {
             <span>Upload de Fotos</span>
           </TabsTrigger>
           <TabsTrigger 
-            value="works" 
-            className="flex items-center space-x-2 text-gray-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-          >
-            <Folder className="h-4 w-4" />
-            <span>Trabalhos</span>
-          </TabsTrigger>
-          <TabsTrigger 
             value="manage" 
             className="flex items-center space-x-2 text-gray-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
           >
-            <Image className="h-4 w-4" />
-            <span>Gerenciar Fotos</span>
+            <Folder className="h-4 w-4" />
+            <span>Trabalhos e Fotos</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload">
-          <PhotoUpload onUploadSuccess={onUploadSuccess} />
-        </TabsContent>
-
-        <TabsContent value="works">
-          <WorkManager refreshTrigger={refreshTrigger} />
+          <div className="space-y-4">
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <Upload className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-blue-200 font-medium mb-1">Dica de Upload Múltiplo</h3>
+                  <p className="text-blue-200/80 text-sm">
+                    Agora você pode selecionar múltiplas fotos de uma vez! Use as configurações globais 
+                    para aplicar categoria e trabalho a todas as fotos, depois personalize individualmente 
+                    se necessário.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <PhotoUpload onUploadSuccess={onUploadSuccess} />
+          </div>
         </TabsContent>
 
         <TabsContent value="manage">
-          <PhotoManager refreshTrigger={refreshTrigger} />
+          <div className="space-y-4">
+            <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <Folder className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-green-200 font-medium mb-1">Gerenciamento</h3>
+                  <p className="text-green-200/80 text-sm">
+                    Visualize seus trabalhos com suas respectivas fotos. Expanda qualquer trabalho 
+                    para ver e gerenciar suas fotos diretamente. Fotos sem trabalho aparecem em 
+                    seção separada para organização.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <WorkManager refreshTrigger={refreshTrigger} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
