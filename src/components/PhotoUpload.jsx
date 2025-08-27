@@ -49,19 +49,6 @@ function PhotoUpload({ onUploadSuccess }) {
     const files = Array.from(event.target.files)
     if (files.length === 0) return
 
-    // Verificar tamanho máximo de cada arquivo (5MB)
-    const maxSize = 5 * 1024 * 1024 // 5MB
-    const oversizedFiles = files.filter(file => file.size > maxSize)
-
-    if (oversizedFiles.length > 0) {
-      const fileNames = oversizedFiles.map(f => f.name).join(', ')
-      setUploadStatus({
-        type: 'error',
-        message: `Os seguintes arquivos excedem o tamanho máximo de 5MB: ${fileNames}`
-      })
-      return
-    }
-
     const newFiles = files.map((file, index) => ({
       id: Date.now() + index,
       file: file,
