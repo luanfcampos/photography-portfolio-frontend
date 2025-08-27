@@ -54,9 +54,10 @@ function PhotoUpload({ onUploadSuccess }) {
       file: file,
       title: file.name.split('.')[0],
       description: '',
-      categoryId: globalSettings.categoryId,
-      workId: globalSettings.workId,
-      isFeatured: false
+      // ✅ CORREÇÃO: Aplicar configurações globais apenas se estiverem definidas
+      categoryId: globalSettings.categoryId && globalSettings.categoryId !== 'none' ? globalSettings.categoryId : '',
+      workId: globalSettings.workId && globalSettings.workId !== 'none' ? globalSettings.workId : '',
+      isFeatured: globalSettings.isFeatured
     }))
 
     setSelectedFiles(prev => [...prev, ...newFiles])
@@ -74,6 +75,9 @@ function PhotoUpload({ onUploadSuccess }) {
       }
       reader.readAsDataURL(file)
     })
+
+    // ✅ Limpar o input para permitir selecionar os mesmos arquivos novamente se necessário
+    event.target.value = ''
   }
 
   const updateFileSettings = (fileId, field, value) => {
@@ -91,15 +95,45 @@ function PhotoUpload({ onUploadSuccess }) {
     setPreviews(prev => prev.filter(preview => preview.id !== fileId))
   }
 
+  // ✅ CORREÇÃO: Melhorar a aplicação das configurações globais
   const applyGlobalSettings = () => {
     setSelectedFiles(prev => 
       prev.map(file => ({
         ...file,
-        categoryId: globalSettings.categoryId || file.categoryId,
-        workId: globalSettings.workId || file.workId,
-        isFeatured: globalSettings.isFeatured
+        // Aplicar configurações globais se estiverem definidas, senão manter as individuais
+        categoryId: globalSettings.categoryId && globalSettings.categoryId !== 'none' && globalSettings.categoryId !== '' 
+          ? globalSettings.categoryId 
+          : file.categoryId,
+        workId: globalSettings.workId && globalSettings.workId !== 'none' && globalSettings.workId !== '' 
+          ? globalSettings.workId 
+          : file.workId,
+        isFeatured: globalSettings.isFeatured // Sempre aplicar o valor do checkbox
       }))
     )
+    
+    // ✅ Mostrar feedback visual
+    setUploadStatus({ 
+      type: 'success', 
+      message: `Configurações aplicadas a ${selectedFiles.length} fotos!` 
+    })
+    
+    // Limpar status após 3 segundos
+    setTimeout(() => setUploadStatus(null), 3000)
+  }
+
+  // ✅ NOVA FUNÇÃO: Aplicar configurações automaticamente quando mudarem
+  const handleGlobalSettingChange = (field, value) => {
+    setGlobalSettings(prev => ({ ...prev, [field]: value }))
+    
+    // Se há fotos selecionadas, aplicar automaticamente
+    if (selectedFiles.length > 0) {
+      setSelectedFiles(prev => 
+        prev.map(file => ({
+          ...file,
+          [field]: value && value !== 'none' ? value : (field === 'isFeatured' ? value : '')
+        }))
+      )
+    }
   }
 
   const handleUpload = async () => {
@@ -260,6 +294,88 @@ function PhotoUpload({ onUploadSuccess }) {
           </div>
         )}
 
+        {/* ✅ CONFIGURAÇÕES GLOBAIS - Movido para cima e melhorado */}
+        <Card className="bg-blue-900/20 border-blue-600/50">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Configurações Padrão</CardTitle>
+            <CardDescription className="text-blue-200">
+              Configure valores que serão aplicados automaticamente a todas as fotos
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="global-category" className="text-white">Categoria Padrão</Label>
+                <Select 
+                  value={globalSettings.categoryId || 'none'} 
+                  onValueChange={(value) => handleGlobalSettingChange('categoryId', value)}
+                >
+                  <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white">
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600">
+                    <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhuma categoria</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="global-work" className="text-white">Trabalho Padrão</Label>
+                <Select 
+                  value={globalSettings.workId || 'none'} 
+                  onValueChange={(value) => handleGlobalSettingChange('workId', value)}
+                >
+                  <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white">
+                    <SelectValue placeholder="Selecione um trabalho" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600">
+                    <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhum trabalho</SelectItem>
+                    {works.map((work) => (
+                      <SelectItem key={work.id} value={work.id.toString()} className="text-white hover:bg-gray-600">
+                        {work.title} ({work.category_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 p-3 bg-gray-600/30 rounded-lg">
+              <input
+                type="checkbox"
+                id="global-featured"
+                checked={globalSettings.isFeatured}
+                onChange={(e) => handleGlobalSettingChange('isFeatured', e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+              />
+              <Label htmlFor="global-featured" className="text-white font-medium">
+                Marcar todas como destaque
+              </Label>
+            </div>
+
+            {selectedFiles.length > 0 && (
+              <div className="p-3 bg-blue-800/20 rounded-lg border border-blue-600/30">
+                <p className="text-blue-200 text-sm mb-2">
+                  ✨ As configurações são aplicadas automaticamente quando você as altera
+                </p>
+                <Button
+                  onClick={applyGlobalSettings}
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-500 text-blue-300 hover:bg-blue-600 hover:text-white"
+                >
+                  Reaplicar a Todas as Fotos
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="space-y-2">
           <Label htmlFor="photo-upload" className="text-white">Selecionar Fotos</Label>
           <div className="relative">
@@ -274,79 +390,13 @@ function PhotoUpload({ onUploadSuccess }) {
             />
             <ImagePlus className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
-          <p className="text-sm text-gray-400">Selecione múltiplas fotos mantendo Ctrl/Cmd pressionado</p>
+          <p className="text-sm text-gray-400">
+            Selecione múltiplas fotos mantendo Ctrl/Cmd pressionado. As configurações padrão serão aplicadas automaticamente.
+          </p>
         </div>
 
         {selectedFiles.length > 0 && (
           <div className="space-y-6">
-            {/* Configurações Globais */}
-            <Card className="bg-gray-700/30 border-gray-600">
-              <CardHeader>
-                <CardTitle className="text-white text-lg">Configurações Globais</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Configure valores padrão para todas as fotos
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="global-category" className="text-white">Categoria Padrão</Label>
-                    <Select value={globalSettings.categoryId} onValueChange={(value) => setGlobalSettings(prev => ({...prev, categoryId: value}))}>
-                      <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white">
-                        <SelectValue placeholder="Selecione uma categoria" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-700 border-gray-600">
-                        <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhuma categoria</SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="global-work" className="text-white">Trabalho Padrão</Label>
-                    <Select value={globalSettings.workId} onValueChange={(value) => setGlobalSettings(prev => ({...prev, workId: value}))}>
-                      <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white">
-                        <SelectValue placeholder="Selecione um trabalho" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-700 border-gray-600">
-                        <SelectItem value="none" className="text-white hover:bg-gray-600">Nenhum trabalho</SelectItem>
-                        {works.map((work) => (
-                          <SelectItem key={work.id} value={work.id.toString()} className="text-white hover:bg-gray-600">
-                            {work.title} ({work.category_name})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 p-3 bg-gray-600/30 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="global-featured"
-                    checked={globalSettings.isFeatured}
-                    onChange={(e) => setGlobalSettings(prev => ({...prev, isFeatured: e.target.checked}))}
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                  />
-                  <Label htmlFor="global-featured" className="text-white font-medium">
-                    Marcar todas como destaque
-                  </Label>
-                </div>
-
-                <Button
-                  onClick={applyGlobalSettings}
-                  variant="outline"
-                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
-                >
-                  Aplicar Configurações a Todas as Fotos
-                </Button>
-              </CardContent>
-            </Card>
-
             {/* Lista de Fotos Selecionadas */}
             <div className="space-y-4">
               <h3 className="text-white font-semibold text-lg">
@@ -415,8 +465,8 @@ function PhotoUpload({ onUploadSuccess }) {
                               <div>
                                 <Label className="text-white text-sm">Categoria</Label>
                                 <Select 
-                                  value={fileData.categoryId} 
-                                  onValueChange={(value) => updateFileSettings(fileData.id, 'categoryId', value)}
+                                  value={fileData.categoryId || 'none'} 
+                                  onValueChange={(value) => updateFileSettings(fileData.id, 'categoryId', value === 'none' ? '' : value)}
                                   disabled={isUploading}
                                 >
                                   <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white text-sm h-8">
@@ -462,8 +512,8 @@ function PhotoUpload({ onUploadSuccess }) {
 
                               <div className="flex-1">
                                 <Select 
-                                  value={fileData.workId} 
-                                  onValueChange={(value) => updateFileSettings(fileData.id, 'workId', value)}
+                                  value={fileData.workId || 'none'} 
+                                  onValueChange={(value) => updateFileSettings(fileData.id, 'workId', value === 'none' ? '' : value)}
                                   disabled={isUploading}
                                 >
                                   <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white text-sm h-8">

@@ -382,7 +382,7 @@ function Portfolio() {
       </header>
 
       {/* Hero Section */}
-      <section id="home" className="relative h-screen flex items-center justify-center bg-[url('/src/assets/portrait2.jpg')] bg-center text-white">
+      <section id="home" className="relative h-screen flex items-center justify-center bg-[url('/src/assets/portrait2.jpg')] bg-center bg-cover text-white">
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <motion.h1
@@ -680,7 +680,7 @@ function Portfolio() {
               <div className="mt-8">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Redes Sociais</h4>
                 <div className="flex space-x-4">
-                  <a href="https://www.instagram.com/luanferreira.foto/" className="text-gray-600 hover:text-black transition-colors">
+                  <a href="https://www.instagram.com/luanferreira.foto/" target="_blank" className="text-gray-600 hover:text-black transition-colors">
                     <Instagram className="h-6 w-6" />
                   </a>
                 </div>
@@ -793,7 +793,7 @@ function Portfolio() {
               Fotógrafo profissional especializado em retratos e eventos
             </p>
             <div className="flex justify-center space-x-6">
-              <a href="https://www.instagram.com/luanferreira.foto/" className="text-gray-400 hover:text-white transition-colors">
+              <a href="https://www.instagram.com/luanferreira.foto/" target="_blank" className="text-gray-400 hover:text-white transition-colors">
                 <Instagram className="h-5 w-5" />
               </a>
             </div>
