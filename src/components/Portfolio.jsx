@@ -26,30 +26,16 @@ function Portfolio() {
     error: null
   })
 
-  // Função para selecionar fotos de um trabalho
-  // Regra: 1 foto por trabalho, EXCETO se houver múltiplas fotos em destaque
-  const selectWorkPhotos = (workPhotos) => {
+  // Função para selecionar APENAS fotos em destaque de um trabalho
+  const selectFeaturedWorkPhotos = (workPhotos) => {
     if (!workPhotos || workPhotos.length === 0) return [];
     
-    // Separar fotos destacadas das normais
-    const highlightedPhotos = workPhotos.filter(photo => photo.is_highlight || photo.highlighted);
-    const regularPhotos = workPhotos.filter(photo => !photo.is_highlight && !photo.highlighted);
+    // Filtrar apenas fotos marcadas como destaque/highlight
+    const featuredPhotos = workPhotos.filter(photo => photo.is_featured || photo.is_highlight || photo.highlighted);
     
-    // Se há múltiplas fotos destacadas, mostrar todas elas
-    if (highlightedPhotos.length > 1) {
-      console.log(`📌 Trabalho tem ${highlightedPhotos.length} fotos em destaque - mostrando todas`);
-      return highlightedPhotos;
-    }
+    console.log(`Trabalho tem ${workPhotos.length} fotos, ${featuredPhotos.length} em destaque`);
     
-    // Se há apenas 1 foto destacada, mostrar só ela
-    if (highlightedPhotos.length === 1) {
-      console.log('📌 Trabalho tem 1 foto em destaque - mostrando apenas ela');
-      return [highlightedPhotos[0]];
-    }
-    
-    // Se não há fotos destacadas, mostrar apenas a primeira foto (ou a de capa)
-    console.log('📷 Trabalho sem destaque - mostrando primeira foto');
-    return [regularPhotos[0]].filter(Boolean);
+    return featuredPhotos;
   };
 
   // Carregar fotos e trabalhos da API
@@ -59,100 +45,79 @@ function Portfolio() {
       setError(null)
 
       try {
-        console.log('🔄 Carregando dados da API:', API_CONFIG.BASE_URL);
+        console.log('Carregando dados da API:', API_CONFIG.BASE_URL);
 
         // Carregar trabalhos
         const worksResponse = await apiRequest(API_CONFIG.ENDPOINTS.WORKS);
 
         if (worksResponse.ok) {
           const worksData = await worksResponse.json();
-          console.log('✅ Trabalhos carregados:', worksData);
+          console.log('Trabalhos carregados:', worksData);
           setWorks(worksData);
 
-          // Para cada trabalho, carregar suas fotos
-          const allPhotos = [];
+          // Para cada trabalho, carregar suas fotos E FILTRAR apenas as em destaque
+          const allFeaturedPhotos = [];
           
           for (const work of worksData) {
             try {
-              // Tentar carregar fotos específicas do trabalho
+              // Carregar fotos específicas do trabalho
               const workPhotosResponse = await apiRequest(`${API_CONFIG.ENDPOINTS.WORKS}/${work.id}/photos`);
               
-              let workPhotos = [];
+              let featuredWorkPhotos = [];
               
               if (workPhotosResponse.ok) {
                 const workPhotosData = await workPhotosResponse.json();
-                console.log(`📸 Fotos do trabalho ${work.id} carregadas:`, workPhotosData);
+                console.log(`Fotos do trabalho ${work.id} carregadas:`, workPhotosData);
                 
-                // Selecionar fotos deste trabalho (1 por trabalho, exceto se múltiplas em destaque)
-                const selectedPhotos = selectWorkPhotos(workPhotosData);
+                // Selecionar APENAS fotos em destaque deste trabalho
+                const selectedFeaturedPhotos = selectFeaturedWorkPhotos(workPhotosData);
                 
-                workPhotos = selectedPhotos.map((photo, index) => ({
+                featuredWorkPhotos = selectedFeaturedPhotos.map((photo, index) => ({
                   id: `work-${work.id}-photo-${photo.id}`,
-                  title: selectedPhotos.length > 1 ? `${work.title} (${index + 1})` : work.title,
+                  title: selectedFeaturedPhotos.length > 1 ? `${work.title} (${index + 1})` : work.title,
                   url: photo.url || photo.photo_url,
                   category_slug: work.category_slug,
                   work_id: work.id,
                   photo_id: photo.id,
-                  is_highlight: photo.is_highlight || photo.highlighted,
+                  is_featured: photo.is_featured || photo.is_highlight || photo.highlighted,
                   order: photo.order || index,
                   total_photos: workPhotosData.length,
                   type: 'work'
                 }));
               } else {
-                // Fallback: usar apenas a foto de capa se não conseguir carregar as fotos do trabalho
-                if (work.cover_photo_url) {
-                  workPhotos = [{
-                    id: `work-${work.id}-cover`,
-                    title: work.title,
-                    url: work.cover_photo_url,
-                    category_slug: work.category_slug,
-                    work_id: work.id,
-                    photo_count: work.photo_count || 0,
-                    type: 'work'
-                  }];
-                }
+                console.warn(`Não foi possível carregar fotos do trabalho ${work.id}`);
               }
               
-              allPhotos.push(...workPhotos);
+              allFeaturedPhotos.push(...featuredWorkPhotos);
               
             } catch (workError) {
-              console.warn(`⚠️ Erro ao carregar fotos do trabalho ${work.id}:`, workError);
-              
-              // Fallback: usar foto de capa
-              if (work.cover_photo_url) {
-                allPhotos.push({
-                  id: `work-${work.id}-cover`,
-                  title: work.title,
-                  url: work.cover_photo_url,
-                  category_slug: work.category_slug,
-                  work_id: work.id,
-                  photo_count: work.photo_count || 0,
-                  type: 'work'
-                });
-              }
+              console.warn(`Erro ao carregar fotos do trabalho ${work.id}:`, workError);
             }
           }
 
-          console.log('📸 Total de fotos selecionadas:', allPhotos);
-          setPhotos(allPhotos);
+          console.log('Total de fotos em destaque selecionadas:', allFeaturedPhotos);
+          setPhotos(allFeaturedPhotos);
 
           // Extrair categorias únicas dos trabalhos
           const uniqueCategories = [
             ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
           ];
-          console.log('🏷️ Categorias encontradas:', uniqueCategories);
+          console.log('Categorias encontradas:', uniqueCategories);
           setCategories(uniqueCategories);
 
-          // Se não temos fotos dos trabalhos, tentar carregar fotos individuais
-          if (allPhotos.length === 0) {
-            console.log('⚠️ Nenhuma foto de trabalho encontrada, carregando fotos individuais...');
+          // Se não temos fotos em destaque dos trabalhos, tentar carregar fotos individuais em destaque
+          if (allFeaturedPhotos.length === 0) {
+            console.log('Nenhuma foto em destaque de trabalhos encontrada, carregando fotos individuais...');
             const photosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS);
 
             if (photosResponse.ok) {
               const photosData = await photosResponse.json();
-              console.log('✅ Fotos individuais carregadas:', photosData);
+              console.log('Fotos individuais carregadas:', photosData);
 
-              const individualPhotos = photosData.map(photo => ({
+              // Filtrar apenas fotos individuais marcadas como destaque
+              const featuredIndividualPhotos = photosData.filter(photo => photo.is_featured === true);
+
+              const individualPhotos = featuredIndividualPhotos.map(photo => ({
                 ...photo,
                 id: `photo-${photo.id}`,
                 type: 'photo'
@@ -161,7 +126,7 @@ function Portfolio() {
               setPhotos(individualPhotos);
 
               const uniqueCategories = [
-                ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
+                ...new Set(featuredIndividualPhotos.map(photo => photo.category_slug).filter(Boolean))
               ];
               setCategories(uniqueCategories);
             }
@@ -171,11 +136,11 @@ function Portfolio() {
           throw new Error('Falha ao carregar trabalhos');
         }
       } catch (error) {
-        console.error('❌ Erro detalhado ao carregar dados:', error);
+        console.error('Erro detalhado ao carregar dados:', error);
         setError(error.message);
 
         // Fallback para dados locais caso a API falhe
-        console.log('🔄 Usando dados de fallback...');
+        console.log('Usando dados de fallback...');
         const fallbackPhotos = [
           {
             id: 'fallback-1',
@@ -183,6 +148,7 @@ function Portfolio() {
             url: aboutImage,
             category_slug: 'ensaios',
             work_id: 1,
+            is_featured: true,
             type: 'work'
           },
           {
@@ -191,6 +157,7 @@ function Portfolio() {
             url: aboutImage,
             category_slug: 'retratos',
             work_id: 2,
+            is_featured: true,
             type: 'work'
           }
         ];
@@ -207,14 +174,14 @@ function Portfolio() {
 
   // Log para debug
   useEffect(() => {
-    console.log('📊 Estado atual:');
+    console.log('Estado atual:');
     console.log('- API Base URL:', API_CONFIG.BASE_URL);
     console.log('- Loading:', loading);
     console.log('- Error:', error);
-    console.log('- Photos:', photos);
+    console.log('- Featured Photos:', photos);
     console.log('- Categories:', categories);
     console.log('- Active Filter:', activeFilter);
-    console.log('- Photos per work logic: 1 foto por trabalho, exceto múltiplas em destaque');
+    console.log('- LÓGICA: Mostrando APENAS fotos em destaque de cada trabalho, mas mantendo navegação para galeria completa');
   }, [loading, error, photos, categories, activeFilter]);
 
   // Filtrar fotos baseado no filtro ativo
@@ -222,7 +189,7 @@ function Portfolio() {
     ? photos
     : photos.filter(photo => photo.category_slug === activeFilter)
 
-  console.log('🔍 Fotos filtradas:', filteredPhotos);
+  console.log('Fotos em destaque filtradas:', filteredPhotos);
 
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId)
@@ -232,26 +199,26 @@ function Portfolio() {
   }
 
   const openWorkGallery = (photo) => {
-    console.log('🖼️ Tentando abrir galeria para:', photo);
-    console.log('🔍 Photo details:', {
+    console.log('Tentando abrir galeria para:', photo);
+    console.log('Photo details:', {
       id: photo.id,
       work_id: photo.work_id,
       type: photo.type,
       title: photo.title
     });
 
-    // ✅ Verificação melhorada - trabalhar com work_id se existir
+    // Verificação melhorada - trabalhar com work_id se existir
     if (photo.work_id) {
-      console.log('🚀 Navegando para work gallery:', photo.work_id);
+      console.log('Navegando para work gallery:', photo.work_id);
       try {
         navigate(`/work/${photo.work_id}`)
       } catch (navError) {
-        console.error('❌ Erro na navegação:', navError);
+        console.error('Erro na navegação:', navError);
         // Fallback para modal
         setSelectedImage(photo)
       }
     } else {
-      console.log('📱 Abrindo modal (sem work_id)');
+      console.log('Abrindo modal (sem work_id)');
       // Fallback para modal se não houver work_id
       setSelectedImage(photo)
     }
@@ -289,7 +256,7 @@ function Portfolio() {
     setFormStatus({ isSubmitting: true, success: null, error: null });
 
     try {
-      console.log('📤 Enviando mensagem de contato:', formData);
+      console.log('Enviando mensagem de contato:', formData);
 
       // Validação adicional
       if (!formData.name || !formData.email || !formData.message) {
@@ -309,7 +276,7 @@ function Portfolio() {
 
       if (response.ok) {
         const responseData = await response.json();
-        console.log('✅ Resposta do servidor:', responseData);
+        console.log('Resposta do servidor:', responseData);
 
         // Limpar formulário e mostrar mensagem de sucesso
         setFormStatus({
@@ -319,17 +286,16 @@ function Portfolio() {
         });
         setFormData({ name: '', email: '', message: '' });
 
-        // Adicionar log de sucesso
-        console.log('✅ Mensagem enviada com sucesso:', responseData);
+        console.log('Mensagem enviada com sucesso:', responseData);
       } else {
         const errorData = await response.json();
-        console.error('❌ Erro do servidor:', errorData);
+        console.error('Erro do servidor:', errorData);
 
         // Lançar erro com mensagem do servidor ou padrão
         throw new Error(errorData.error || 'Falha ao enviar mensagem');
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error);
+      console.error('Erro ao enviar mensagem:', error);
 
       // Atualizar estado com mensagem de erro
       setFormStatus({
@@ -419,22 +385,22 @@ function Portfolio() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Meu Trabalho</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Uma seleção cuidadosa dos meus trabalhos mais recentes, capturando momentos únicos e emoções autênticas.
+              Uma seleção das fotos em destaque dos meus trabalhos, capturando momentos únicos e emoções autênticas.
             </p>
           </div>
 
-          {/* Debug Info - Melhorado */}
+          {/* Debug Info */}
           {import.meta.env.DEV && (
             <div className="mb-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-700">
-              <p><strong>🛠 Debug Info:</strong></p>
+              <p><strong>Debug Info:</strong></p>
               <p>API URL: {API_CONFIG.BASE_URL}</p>
               <p>Loading: {loading ? 'Sim' : 'Não'}</p>
               <p>Error: {error || 'Nenhum'}</p>
-              <p>Total Photos: {photos.length}</p>
+              <p>Featured Photos: {photos.length}</p>
               <p>Filtered Photos: {filteredPhotos.length}</p>
               <p>Categories: {categories.join(', ') || 'Nenhuma'}</p>
               <p>Photos with work_id: {photos.filter(p => p.work_id).length}</p>
-              <p>Logic: 1 foto por trabalho, exceto múltiplas em destaque</p>
+              <p><strong>LÓGICA: Mostrando apenas fotos EM DESTAQUE de cada trabalho, mas mantendo navegação para galeria completa</strong></p>
             </div>
           )}
 
@@ -474,12 +440,12 @@ function Portfolio() {
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-              <p className="mt-4 text-gray-600">Carregando fotos...</p>
+              <p className="mt-4 text-gray-600">Carregando fotos em destaque...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
               <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 max-w-md mx-auto">
-                <p className="font-bold">⚠️ Problema de conexão com a API</p>
+                <p className="font-bold">Problema de conexão com a API</p>
                 <p className="text-sm">{error}</p>
                 <p className="text-sm mt-2">Exibindo dados de exemplo.</p>
               </div>
@@ -502,7 +468,7 @@ function Portfolio() {
                   transition={{ duration: 0.3 }}
                   className="group cursor-pointer"
                   onClick={() => {
-                    console.log('🖱️ Clique na foto:', photo);
+                    console.log('Clique na foto em destaque:', photo);
                     openWorkGallery(photo);
                   }}
                 >
@@ -511,9 +477,9 @@ function Portfolio() {
                       src={photo.url}
                       alt={photo.title}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      onLoad={() => console.log('✅ Imagem carregada:', photo.url)}
+                      onLoad={() => console.log('Imagem em destaque carregada:', photo.url)}
                       onError={(e) => {
-                        console.error('❌ Erro ao carregar imagem:', photo.url);
+                        console.error('Erro ao carregar imagem em destaque:', photo.url);
                         // Placeholder mais elegante
                         e.target.style.display = 'none';
                         const placeholder = e.target.parentElement.querySelector('.placeholder');
@@ -531,7 +497,13 @@ function Portfolio() {
 
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
 
-
+                    {/* Badge de destaque */}
+                    {photo.is_featured && (
+                      <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-xs px-2 py-1 rounded-full font-semibold flex items-center space-x-1">
+                        <span className="text-yellow-800">★</span>
+                        <span>Destaque</span>
+                      </div>
+                    )}
 
                     {/* Título no hover */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -549,12 +521,15 @@ function Portfolio() {
           {filteredPhotos.length === 0 && !loading && (
             <div className="text-center py-12">
               <Camera className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhuma foto encontrada nesta categoria.</p>
+              <p className="text-gray-500">Nenhuma foto em destaque encontrada nesta categoria.</p>
+              <p className="text-gray-400 text-sm mt-2">
+                Marque fotos como destaque no gerenciador para que apareçam aqui.
+              </p>
               <button
                 onClick={() => setActiveFilter('todos')}
                 className="mt-4 text-blue-600 hover:text-blue-800 underline"
               >
-                Ver todas as fotos
+                Ver todas as fotos em destaque
               </button>
             </div>
           )}
@@ -601,10 +576,10 @@ function Portfolio() {
             {/* Título da imagem */}
             <div className="absolute bottom-4 left-4 text-white">
               <h3 className="text-lg font-semibold">{selectedImage.title}</h3>
-              {/* ✅ Info adicional para debug */}
+              {/* Info adicional para debug */}
               {import.meta.env.DEV && (
                 <p className="text-sm text-gray-300">
-                  ID: {selectedImage.id} | Work ID: {selectedImage.work_id || 'N/A'} | Type: {selectedImage.type}
+                  ID: {selectedImage.id} | Work ID: {selectedImage.work_id || 'N/A'} | Type: {selectedImage.type} | Featured: {selectedImage.is_featured ? 'Sim' : 'Não'}
                 </p>
               )}
             </div>
@@ -698,21 +673,6 @@ function Portfolio() {
                     id="name"
                     name="name"
                     value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                    placeholder="Seu Nome"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                     placeholder="seu@email.com"
