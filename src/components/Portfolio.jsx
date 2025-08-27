@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Camera, Mail, Instagram, Facebook, Twitter, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Camera, Mail, Instagram, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { API_CONFIG, apiRequest } from '../config/api'
 import WhatsAppFloatingButton from './WhatsAppFloatingButton'
 import aboutImage from '../assets/portrait1.jpg';
@@ -26,50 +26,37 @@ function Portfolio() {
     error: null
   })
 
-  // Função para selecionar APENAS fotos em destaque de um trabalho
   const selectFeaturedWorkPhotos = (workPhotos) => {
     if (!workPhotos || workPhotos.length === 0) return [];
     
-    // Filtrar apenas fotos marcadas como destaque/highlight
     const featuredPhotos = workPhotos.filter(photo => photo.is_featured || photo.is_highlight || photo.highlighted);
-    
-    console.log(`Trabalho tem ${workPhotos.length} fotos, ${featuredPhotos.length} em destaque`);
     
     return featuredPhotos;
   };
 
-  // Carregar fotos e trabalhos da API
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       setError(null)
 
       try {
-        console.log('Carregando dados da API:', API_CONFIG.BASE_URL);
-
-        // Carregar trabalhos
         const worksResponse = await apiRequest(API_CONFIG.ENDPOINTS.WORKS);
 
         if (worksResponse.ok) {
           const worksData = await worksResponse.json();
-          console.log('Trabalhos carregados:', worksData);
           setWorks(worksData);
 
-          // Para cada trabalho, carregar suas fotos E FILTRAR apenas as em destaque
           const allFeaturedPhotos = [];
           
           for (const work of worksData) {
             try {
-              // Carregar fotos específicas do trabalho
               const workPhotosResponse = await apiRequest(`${API_CONFIG.ENDPOINTS.WORKS}/${work.id}/photos`);
               
               let featuredWorkPhotos = [];
               
               if (workPhotosResponse.ok) {
                 const workPhotosData = await workPhotosResponse.json();
-                console.log(`Fotos do trabalho ${work.id} carregadas:`, workPhotosData);
                 
-                // Selecionar APENAS fotos em destaque deste trabalho
                 const selectedFeaturedPhotos = selectFeaturedWorkPhotos(workPhotosData);
                 
                 featuredWorkPhotos = selectedFeaturedPhotos.map((photo, index) => ({
@@ -84,8 +71,6 @@ function Portfolio() {
                   total_photos: workPhotosData.length,
                   type: 'work'
                 }));
-              } else {
-                console.warn(`Não foi possível carregar fotos do trabalho ${work.id}`);
               }
               
               allFeaturedPhotos.push(...featuredWorkPhotos);
@@ -95,26 +80,19 @@ function Portfolio() {
             }
           }
 
-          console.log('Total de fotos em destaque selecionadas:', allFeaturedPhotos);
           setPhotos(allFeaturedPhotos);
 
-          // Extrair categorias únicas dos trabalhos
           const uniqueCategories = [
             ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
           ];
-          console.log('Categorias encontradas:', uniqueCategories);
           setCategories(uniqueCategories);
 
-          // Se não temos fotos em destaque dos trabalhos, tentar carregar fotos individuais em destaque
           if (allFeaturedPhotos.length === 0) {
-            console.log('Nenhuma foto em destaque de trabalhos encontrada, carregando fotos individuais...');
             const photosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS);
 
             if (photosResponse.ok) {
               const photosData = await photosResponse.json();
-              console.log('Fotos individuais carregadas:', photosData);
 
-              // Filtrar apenas fotos individuais marcadas como destaque
               const featuredIndividualPhotos = photosData.filter(photo => photo.is_featured === true);
 
               const individualPhotos = featuredIndividualPhotos.map(photo => ({
@@ -139,8 +117,6 @@ function Portfolio() {
         console.error('Erro detalhado ao carregar dados:', error);
         setError(error.message);
 
-        // Fallback para dados locais caso a API falhe
-        console.log('Usando dados de fallback...');
         const fallbackPhotos = [
           {
             id: 'fallback-1',
@@ -155,7 +131,7 @@ function Portfolio() {
             id: 'fallback-2',
             title: 'Fotografia Profissional',
             url: aboutImage,
-            category_slug: 'ensaios',
+            category_slug: 'retratos',
             work_id: 2,
             is_featured: true,
             type: 'work'
@@ -163,7 +139,7 @@ function Portfolio() {
         ];
 
         setPhotos(fallbackPhotos);
-        setCategories(['ensaios', 'ensaios']);
+        setCategories(['ensaios', 'retratos']);
       } finally {
         setLoading(false);
       }
@@ -172,24 +148,9 @@ function Portfolio() {
     loadData();
   }, []);
 
-  // Log para debug
-  useEffect(() => {
-    console.log('Estado atual:');
-    console.log('- API Base URL:', API_CONFIG.BASE_URL);
-    console.log('- Loading:', loading);
-    console.log('- Error:', error);
-    console.log('- Featured Photos:', photos);
-    console.log('- Categories:', categories);
-    console.log('- Active Filter:', activeFilter);
-    console.log('- LÓGICA: Mostrando APENAS fotos em destaque de cada trabalho, mas mantendo navegação para galeria completa');
-  }, [loading, error, photos, categories, activeFilter]);
-
-  // Filtrar fotos baseado no filtro ativo
   const filteredPhotos = activeFilter === 'todos'
     ? photos
     : photos.filter(photo => photo.category_slug === activeFilter)
-
-  console.log('Fotos em destaque filtradas:', filteredPhotos);
 
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId)
@@ -199,27 +160,13 @@ function Portfolio() {
   }
 
   const openWorkGallery = (photo) => {
-    console.log('Tentando abrir galeria para:', photo);
-    console.log('Photo details:', {
-      id: photo.id,
-      work_id: photo.work_id,
-      type: photo.type,
-      title: photo.title
-    });
-
-    // Verificação melhorada - trabalhar com work_id se existir
     if (photo.work_id) {
-      console.log('Navegando para work gallery:', photo.work_id);
       try {
         navigate(`/work/${photo.work_id}`)
       } catch (navError) {
-        console.error('Erro na navegação:', navError);
-        // Fallback para modal
         setSelectedImage(photo)
       }
     } else {
-      console.log('Abrindo modal (sem work_id)');
-      // Fallback para modal se não houver work_id
       setSelectedImage(photo)
     }
   }
@@ -256,14 +203,10 @@ function Portfolio() {
     setFormStatus({ isSubmitting: true, success: null, error: null });
 
     try {
-      console.log('Enviando mensagem de contato:', formData);
-
-      // Validação adicional
       if (!formData.name || !formData.email || !formData.message) {
         throw new Error('Todos os campos são obrigatórios');
       }
 
-      // Validação de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         throw new Error('Por favor, insira um email válido');
@@ -276,28 +219,18 @@ function Portfolio() {
 
       if (response.ok) {
         const responseData = await response.json();
-        console.log('Resposta do servidor:', responseData);
 
-        // Limpar formulário e mostrar mensagem de sucesso
         setFormStatus({
           isSubmitting: false,
           success: responseData.message || 'Mensagem enviada com sucesso!',
           error: null
         });
         setFormData({ name: '', email: '', message: '' });
-
-        console.log('Mensagem enviada com sucesso:', responseData);
       } else {
         const errorData = await response.json();
-        console.error('Erro do servidor:', errorData);
-
-        // Lançar erro com mensagem do servidor ou padrão
         throw new Error(errorData.error || 'Falha ao enviar mensagem');
       }
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-
-      // Atualizar estado com mensagem de erro
       setFormStatus({
         isSubmitting: false,
         success: null,
@@ -389,21 +322,6 @@ function Portfolio() {
             </p>
           </div>
 
-          {/* Debug Info */}
-          {import.meta.env.DEV && (
-            <div className="mb-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-700">
-              <p><strong>Debug Info:</strong></p>
-              <p>API URL: {API_CONFIG.BASE_URL}</p>
-              <p>Loading: {loading ? 'Sim' : 'Não'}</p>
-              <p>Error: {error || 'Nenhum'}</p>
-              <p>Featured Photos: {photos.length}</p>
-              <p>Filtered Photos: {filteredPhotos.length}</p>
-              <p>Categories: {categories.join(', ') || 'Nenhuma'}</p>
-              <p>Photos with work_id: {photos.filter(p => p.work_id).length}</p>
-              <p><strong>LÓGICA: Mostrando apenas fotos EM DESTAQUE de cada trabalho, mas mantendo navegação para galeria completa</strong></p>
-            </div>
-          )}
-
           {/* Filtros */}
           <div className="flex justify-center mb-12">
             <div className="flex flex-wrap justify-center gap-2 bg-gray-100 p-1 rounded-full">
@@ -452,7 +370,6 @@ function Portfolio() {
             </div>
           ) : null}
 
-          {/* Grid sempre exibe, mesmo com erro (usando fallback) */}
           {!loading && (
             <motion.div
               layout
@@ -467,20 +384,14 @@ function Portfolio() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.3 }}
                   className="group cursor-pointer"
-                  onClick={() => {
-                    console.log('Clique na foto em destaque:', photo);
-                    openWorkGallery(photo);
-                  }}
+                  onClick={() => openWorkGallery(photo)}
                 >
                   <div className="relative overflow-hidden rounded-lg aspect-square bg-gray-100">
                     <img
                       src={photo.url}
                       alt={photo.title}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      onLoad={() => console.log('Imagem em destaque carregada:', photo.url)}
                       onError={(e) => {
-                        console.error('Erro ao carregar imagem em destaque:', photo.url);
-                        // Placeholder mais elegante
                         e.target.style.display = 'none';
                         const placeholder = e.target.parentElement.querySelector('.placeholder');
                         if (placeholder) {
@@ -489,7 +400,6 @@ function Portfolio() {
                       }}
                     />
 
-                    {/* Placeholder para erro de carregamento */}
                     <div className="placeholder absolute inset-0 bg-gray-200 flex-col items-center justify-center text-gray-500 hidden">
                       <Camera className="h-12 w-12 mb-2" />
                       <p className="text-sm text-center px-2">Erro ao carregar imagem</p>
@@ -497,15 +407,6 @@ function Portfolio() {
 
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
 
-                    {/* Badge de destaque */}
-                    {photo.is_featured && (
-                      <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-xs px-2 py-1 rounded-full font-semibold flex items-center space-x-1">
-                        <span className="text-yellow-800">★</span>
-                        <span>Destaque</span>
-                      </div>
-                    )}
-
-                    {/* Título no hover */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <h3 className="text-white font-medium">{photo.title}</h3>
                       <p className="text-white/80 text-sm">
@@ -522,9 +423,6 @@ function Portfolio() {
             <div className="text-center py-12">
               <Camera className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">Nenhuma foto em destaque encontrada nesta categoria.</p>
-              <p className="text-gray-400 text-sm mt-2">
-                Marque fotos como destaque no gerenciador para que apareçam aqui.
-              </p>
               <button
                 onClick={() => setActiveFilter('todos')}
                 className="mt-4 text-blue-600 hover:text-blue-800 underline"
@@ -551,7 +449,6 @@ function Portfolio() {
               className="max-w-full max-h-full object-contain"
             />
 
-            {/* Controles do Modal */}
             <button
               onClick={closeModal}
               className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
@@ -573,15 +470,8 @@ function Portfolio() {
               <ChevronRight className="h-8 w-8" />
             </button>
 
-            {/* Título da imagem */}
             <div className="absolute bottom-4 left-4 text-white">
               <h3 className="text-lg font-semibold">{selectedImage.title}</h3>
-              {/* Info adicional para debug */}
-              {import.meta.env.DEV && (
-                <p className="text-sm text-gray-300">
-                  ID: {selectedImage.id} | Work ID: {selectedImage.work_id || 'N/A'} | Type: {selectedImage.type} | Featured: {selectedImage.is_featured ? 'Sim' : 'Não'}
-                </p>
-              )}
             </div>
           </motion.div>
         </div>
@@ -675,6 +565,21 @@ function Portfolio() {
                     value={formData.name}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                    placeholder="Seu nome"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                     placeholder="seu@email.com"
                     required
                   />
@@ -711,12 +616,6 @@ function Portfolio() {
                     </svg>
                     <span>{formStatus.success}</span>
                   </div>
-                  {import.meta.env.DEV && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      <p>Dados enviados:</p>
-                      <pre className="whitespace-pre-wrap">{JSON.stringify(formData, null, 2)}</pre>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -728,12 +627,6 @@ function Portfolio() {
                     </svg>
                     <span>{formStatus.error}</span>
                   </div>
-                  {import.meta.env.DEV && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      <p>Dados enviados:</p>
-                      <pre className="whitespace-pre-wrap">{JSON.stringify(formData, null, 2)}</pre>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -750,10 +643,10 @@ function Portfolio() {
               <span className="text-xl font-bold">Luan Ferreira</span>
             </div>
             <p className="text-gray-400 mb-6">
-              Fotógrafo profissional especializado em ensaios e eventos
+              Fotógrafo profissional especializado em retratos e eventos
             </p>
             <div className="flex justify-center space-x-6">
-              <a href="https://www.instagram.com/luanferreira.foto/" target="_blank" className="text-gray-400 hover:text-white transition-colors">
+              <a href="https://www.instagram.com/luanferreira.foto/" target="_blank" className="text-gray-600 hover:text-white transition-colors">
                 <Instagram className="h-5 w-5" />
               </a>
             </div>
