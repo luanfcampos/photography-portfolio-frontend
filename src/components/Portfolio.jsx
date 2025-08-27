@@ -83,7 +83,7 @@ function Portfolio() {
           setPhotos(allFeaturedPhotos);
 
           const uniqueCategories = [
-            ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
+            ...new Set(allFeaturedPhotos.map(photo => photo.category_slug).filter(Boolean))
           ];
           setCategories(uniqueCategories);
 
@@ -104,7 +104,7 @@ function Portfolio() {
               setPhotos(individualPhotos);
 
               const uniqueCategories = [
-                ...new Set(featuredIndividualPhotos.map(photo => photo.category_slug).filter(Boolean))
+                ...new Set(individualPhotos.map(photo => photo.category_slug).filter(Boolean))
               ];
               setCategories(uniqueCategories);
             }
@@ -335,22 +335,27 @@ function Portfolio() {
               >
                 Todos ({photos.length})
               </button>
-              {categories.map((category) => {
-                const categoryCount = photos.filter(photo => photo.category_slug === category).length;
-                return (
+              {/* Filtrar apenas categorias que têm fotos */}
+              {categories
+                .map(category => ({
+                  slug: category,
+                  count: photos.filter(photo => photo.category_slug === category).length
+                }))
+                .filter(category => category.count > 0) // Só categorias com fotos
+                .map(({ slug, count }) => (
                   <button
-                    key={category}
-                    onClick={() => setActiveFilter(category)}
+                    key={slug}
+                    onClick={() => setActiveFilter(slug)}
                     className={`px-6 py-2 rounded-full transition-all capitalize ${
-                      activeFilter === category
+                      activeFilter === slug
                         ? 'bg-black text-white'
                         : 'text-gray-600 hover:text-black'
                     }`}
                   >
-                    {category} ({categoryCount})
+                    {slug} ({count})
                   </button>
-                );
-              })}
+                ))
+              }
             </div>
           </div>
 
