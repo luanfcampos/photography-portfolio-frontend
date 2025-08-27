@@ -26,6 +26,32 @@ function Portfolio() {
     error: null
   })
 
+  // Função para selecionar fotos de um trabalho
+  // Regra: 1 foto por trabalho, EXCETO se houver múltiplas fotos em destaque
+  const selectWorkPhotos = (workPhotos) => {
+    if (!workPhotos || workPhotos.length === 0) return [];
+    
+    // Separar fotos destacadas das normais
+    const highlightedPhotos = workPhotos.filter(photo => photo.is_highlight || photo.highlighted);
+    const regularPhotos = workPhotos.filter(photo => !photo.is_highlight && !photo.highlighted);
+    
+    // Se há múltiplas fotos destacadas, mostrar todas elas
+    if (highlightedPhotos.length > 1) {
+      console.log(`📌 Trabalho tem ${highlightedPhotos.length} fotos em destaque - mostrando todas`);
+      return highlightedPhotos;
+    }
+    
+    // Se há apenas 1 foto destacada, mostrar só ela
+    if (highlightedPhotos.length === 1) {
+      console.log('📌 Trabalho tem 1 foto em destaque - mostrando apenas ela');
+      return [highlightedPhotos[0]];
+    }
+    
+    // Se não há fotos destacadas, mostrar apenas a primeira foto (ou a de capa)
+    console.log('📷 Trabalho sem destaque - mostrando primeira foto');
+    return [regularPhotos[0]].filter(Boolean);
+  };
+
   // Carregar fotos e trabalhos da API
   useEffect(() => {
     const loadData = async () => {
@@ -33,7 +59,7 @@ function Portfolio() {
       setError(null)
 
       try {
-        console.log('📄 Carregando dados da API:', API_CONFIG.BASE_URL);
+        console.log('🔄 Carregando dados da API:', API_CONFIG.BASE_URL);
 
         // Carregar trabalhos
         const worksResponse = await apiRequest(API_CONFIG.ENDPOINTS.WORKS);
@@ -43,24 +69,83 @@ function Portfolio() {
           console.log('✅ Trabalhos carregados:', worksData);
           setWorks(worksData);
 
-          // Usar a foto de capa de cada trabalho para a galeria principal
-          const workPhotos = worksData
-            .filter(work => work.cover_photo_url)
-            .map(work => ({
-              id: `work-${work.id}`, // Prefixo para evitar conflito de IDs
-              title: work.title,
-              url: work.cover_photo_url,
-              category_slug: work.category_slug,
-              work_id: work.id, // ✅ Garantir que work_id está definido
-              photo_count: work.photo_count || 0,
-              type: 'work' // Identificar como trabalho
-            }));
+          // Para cada trabalho, carregar suas fotos
+          const allPhotos = [];
+          
+          for (const work of worksData) {
+            try {
+              // Tentar carregar fotos específicas do trabalho
+              const workPhotosResponse = await apiRequest(`${API_CONFIG.ENDPOINTS.WORKS}/${work.id}/photos`);
+              
+              let workPhotos = [];
+              
+              if (workPhotosResponse.ok) {
+                const workPhotosData = await workPhotosResponse.json();
+                console.log(`📸 Fotos do trabalho ${work.id} carregadas:`, workPhotosData);
+                
+                // Selecionar fotos deste trabalho (1 por trabalho, exceto se múltiplas em destaque)
+                const selectedPhotos = selectWorkPhotos(workPhotosData);
+                
+                workPhotos = selectedPhotos.map((photo, index) => ({
+                  id: `work-${work.id}-photo-${photo.id}`,
+                  title: selectedPhotos.length > 1 ? `${work.title} (${index + 1})` : work.title,
+                  url: photo.url || photo.photo_url,
+                  category_slug: work.category_slug,
+                  work_id: work.id,
+                  photo_id: photo.id,
+                  is_highlight: photo.is_highlight || photo.highlighted,
+                  order: photo.order || index,
+                  total_photos: workPhotosData.length,
+                  type: 'work'
+                }));
+              } else {
+                // Fallback: usar apenas a foto de capa se não conseguir carregar as fotos do trabalho
+                if (work.cover_photo_url) {
+                  workPhotos = [{
+                    id: `work-${work.id}-cover`,
+                    title: work.title,
+                    url: work.cover_photo_url,
+                    category_slug: work.category_slug,
+                    work_id: work.id,
+                    photo_count: work.photo_count || 0,
+                    type: 'work'
+                  }];
+                }
+              }
+              
+              allPhotos.push(...workPhotos);
+              
+            } catch (workError) {
+              console.warn(`⚠️ Erro ao carregar fotos do trabalho ${work.id}:`, workError);
+              
+              // Fallback: usar foto de capa
+              if (work.cover_photo_url) {
+                allPhotos.push({
+                  id: `work-${work.id}-cover`,
+                  title: work.title,
+                  url: work.cover_photo_url,
+                  category_slug: work.category_slug,
+                  work_id: work.id,
+                  photo_count: work.photo_count || 0,
+                  type: 'work'
+                });
+              }
+            }
+          }
 
-          console.log('📸 Fotos dos trabalhos:', workPhotos);
+          console.log('📸 Total de fotos selecionadas:', allPhotos);
+          setPhotos(allPhotos);
 
-          // Se não há trabalhos com capa, tentar carregar fotos individuais
-          if (workPhotos.length === 0) {
-            console.log('⚠️ Nenhum trabalho com capa encontrado, carregando fotos individuais...');
+          // Extrair categorias únicas dos trabalhos
+          const uniqueCategories = [
+            ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
+          ];
+          console.log('🏷️ Categorias encontradas:', uniqueCategories);
+          setCategories(uniqueCategories);
+
+          // Se não temos fotos dos trabalhos, tentar carregar fotos individuais
+          if (allPhotos.length === 0) {
+            console.log('⚠️ Nenhuma foto de trabalho encontrada, carregando fotos individuais...');
             const photosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS);
 
             if (photosResponse.ok) {
@@ -69,8 +154,8 @@ function Portfolio() {
 
               const individualPhotos = photosData.map(photo => ({
                 ...photo,
-                id: `photo-${photo.id}`, // Prefixo para evitar conflito
-                type: 'photo' // Identificar como foto individual
+                id: `photo-${photo.id}`,
+                type: 'photo'
               }));
 
               setPhotos(individualPhotos);
@@ -79,19 +164,9 @@ function Portfolio() {
                 ...new Set(photosData.map(photo => photo.category_slug).filter(Boolean))
               ];
               setCategories(uniqueCategories);
-            } else {
-              throw new Error('Falha ao carregar fotos individuais');
             }
-          } else {
-            setPhotos(workPhotos);
-
-            // Extrair categorias únicas dos trabalhos
-            const uniqueCategories = [
-              ...new Set(worksData.map(work => work.category_slug).filter(Boolean))
-            ];
-            console.log('🏷️ Categorias encontradas:', uniqueCategories);
-            setCategories(uniqueCategories);
           }
+
         } else {
           throw new Error('Falha ao carregar trabalhos');
         }
@@ -100,23 +175,23 @@ function Portfolio() {
         setError(error.message);
 
         // Fallback para dados locais caso a API falhe
-        console.log('📄 Usando dados de fallback...');
+        console.log('🔄 Usando dados de fallback...');
         const fallbackPhotos = [
           {
             id: 'fallback-1',
             title: 'Ensaio Natural',
             url: aboutImage,
             category_slug: 'ensaios',
-            work_id: 1, // ✅ Adicionar work_id para fallback também
-            type: 'work' // ✅ Definir como work para funcionar a navegação
+            work_id: 1,
+            type: 'work'
           },
           {
             id: 'fallback-2',
             title: 'Fotografia Profissional',
             url: aboutImage,
             category_slug: 'retratos',
-            work_id: 2, // ✅ Adicionar work_id para fallback também
-            type: 'work' // ✅ Definir como work para funcionar a navegação
+            work_id: 2,
+            type: 'work'
           }
         ];
 
@@ -139,6 +214,7 @@ function Portfolio() {
     console.log('- Photos:', photos);
     console.log('- Categories:', categories);
     console.log('- Active Filter:', activeFilter);
+    console.log('- Photos per work logic: 1 foto por trabalho, exceto múltiplas em destaque');
   }, [loading, error, photos, categories, activeFilter]);
 
   // Filtrar fotos baseado no filtro ativo
@@ -358,6 +434,7 @@ function Portfolio() {
               <p>Filtered Photos: {filteredPhotos.length}</p>
               <p>Categories: {categories.join(', ') || 'Nenhuma'}</p>
               <p>Photos with work_id: {photos.filter(p => p.work_id).length}</p>
+              <p>Logic: 1 foto por trabalho, exceto múltiplas em destaque</p>
             </div>
           )}
 
@@ -454,12 +531,7 @@ function Portfolio() {
 
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
 
-                    {/* Indicador de número de fotos */}
-                    {photo.photo_count && photo.photo_count > 1 && (
-                      <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-                        📷 {photo.photo_count} fotos
-                      </div>
-                    )}
+
 
                     {/* Título no hover */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
