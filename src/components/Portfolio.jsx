@@ -155,7 +155,7 @@ function Portfolio() {
             id: 'fallback-2',
             title: 'Fotografia Profissional',
             url: aboutImage,
-            category_slug: 'retratos',
+            category_slug: 'ensaios',
             work_id: 2,
             is_featured: true,
             type: 'work'
@@ -163,7 +163,7 @@ function Portfolio() {
         ];
 
         setPhotos(fallbackPhotos);
-        setCategories(['ensaios', 'retratos']);
+        setCategories(['ensaios', 'ensaios']);
       } finally {
         setLoading(false);
       }
@@ -750,7 +750,7 @@ function Portfolio() {
               <span className="text-xl font-bold">Luan Ferreira</span>
             </div>
             <p className="text-gray-400 mb-6">
-              Fotógrafo profissional especializado em retratos e eventos
+              Fotógrafo profissional especializado em ensaios e eventos
             </p>
             <div className="flex justify-center space-x-6">
               <a href="https://www.instagram.com/luanferreira.foto/" target="_blank" className="text-gray-400 hover:text-white transition-colors">
