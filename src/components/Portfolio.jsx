@@ -71,75 +71,90 @@ function Portfolio() {
                   total_photos: workPhotosData.length,
                   type: 'work'
                 }));
+              } else if (workPhotosResponse.status === 404) {
+                // Work existe mas não tem fotos - apenas log, não quebra
+                console.info(`Work ${work.id} não tem fotos disponíveis (404)`);
+              } else {
+                // Outros erros - log mas continua
+                console.warn(`Erro ao carregar fotos do trabalho ${work.id}:`, workPhotosResponse.status);
               }
               
               allFeaturedPhotos.push(...featuredWorkPhotos);
               
             } catch (workError) {
-              console.warn(`Erro ao carregar fotos do trabalho ${work.id}:`, workError);
+              // Log do erro mas não quebra o carregamento
+              console.warn(`Erro ao carregar fotos do trabalho ${work.id}:`, workError.message);
+              continue; // Pula para o próximo work
             }
           }
 
           setPhotos(allFeaturedPhotos);
 
+          // Categorias baseadas nas fotos que realmente carregaram
           const uniqueCategories = [
             ...new Set(allFeaturedPhotos.map(photo => photo.category_slug).filter(Boolean))
           ];
           setCategories(uniqueCategories);
 
+          // Se não tem fotos em destaque dos works, tenta fotos individuais
           if (allFeaturedPhotos.length === 0) {
-            const photosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS);
+            try {
+              const photosResponse = await apiRequest(API_CONFIG.ENDPOINTS.PHOTOS);
 
-            if (photosResponse.ok) {
-              const photosData = await photosResponse.json();
+              if (photosResponse.ok) {
+                const photosData = await photosResponse.json();
 
-              const featuredIndividualPhotos = photosData.filter(photo => photo.is_featured === true);
+                const featuredIndividualPhotos = photosData.filter(photo => photo.is_featured === true);
 
-              const individualPhotos = featuredIndividualPhotos.map(photo => ({
-                ...photo,
-                id: `photo-${photo.id}`,
-                type: 'photo'
-              }));
+                const individualPhotos = featuredIndividualPhotos.map(photo => ({
+                  ...photo,
+                  id: `photo-${photo.id}`,
+                  type: 'photo'
+                }));
 
-              setPhotos(individualPhotos);
+                setPhotos(individualPhotos);
 
-              const uniqueCategories = [
-                ...new Set(individualPhotos.map(photo => photo.category_slug).filter(Boolean))
-              ];
-              setCategories(uniqueCategories);
+                const uniqueCategories = [
+                  ...new Set(individualPhotos.map(photo => photo.category_slug).filter(Boolean))
+                ];
+                setCategories(uniqueCategories);
+              }
+            } catch (photosError) {
+              console.warn('Erro ao carregar fotos individuais:', photosError.message);
             }
           }
 
         } else {
-          throw new Error('Falha ao carregar trabalhos');
+          throw new Error(`Falha ao carregar trabalhos: ${worksResponse.status}`);
         }
       } catch (error) {
         console.error('Erro detalhado ao carregar dados:', error);
         setError(error.message);
 
+        // Fallback photos (dados de exemplo)
         const fallbackPhotos = [
           {
             id: 'fallback-1',
             title: 'Ensaio Natural',
             url: aboutImage,
             category_slug: 'ensaios',
-            work_id: 1,
+            work_id: null, // Sem work_id para evitar navegação
             is_featured: true,
-            type: 'work'
+            type: 'photo'
           },
           {
             id: 'fallback-2',
             title: 'Fotografia Profissional',
             url: aboutImage,
-            category_slug: 'retratos',
-            work_id: 2,
+            category_slug: 'performances',
+            work_id: null,
             is_featured: true,
-            type: 'work'
+            type: 'photo'
           }
         ];
 
         setPhotos(fallbackPhotos);
-        setCategories(['ensaios', 'retratos']);
+        setCategories(['ensaios', 'performances']);
       } finally {
         setLoading(false);
       }
@@ -160,13 +175,16 @@ function Portfolio() {
   }
 
   const openWorkGallery = (photo) => {
-    if (photo.work_id) {
-      try {
-        navigate(`/work/${photo.work_id}`)
-      } catch (navError) {
-        setSelectedImage(photo)
-      }
-    } else {
+    // Se não tem work_id ou se for foto de fallback, abre modal
+    if (!photo.work_id || photo.id.startsWith('fallback-')) {
+      setSelectedImage(photo)
+      return;
+    }
+    
+    try {
+      navigate(`/work/${photo.work_id}`)
+    } catch (navError) {
+      console.warn('Erro na navegação, abrindo modal:', navError);
       setSelectedImage(photo)
     }
   }
@@ -322,7 +340,7 @@ function Portfolio() {
             </p>
           </div>
 
-          {/* Filtros */}
+          {/* Filtros - Melhorados para mostrar apenas categorias não vazias */}
           <div className="flex justify-center mb-12">
             <div className="flex flex-wrap justify-center gap-2 bg-gray-100 p-1 rounded-full">
               <button
@@ -415,7 +433,7 @@ function Portfolio() {
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <h3 className="text-white font-medium">{photo.title}</h3>
                       <p className="text-white/80 text-sm">
-                        {photo.work_id ? 'Clique para ver galeria completa' : 'Clique para ampliar'}
+                        {photo.work_id && !photo.id.startsWith('fallback-') ? 'Clique para ver galeria completa' : 'Clique para ampliar'}
                       </p>
                     </div>
                   </div>
@@ -489,7 +507,7 @@ function Portfolio() {
             <div>
               <h2 className="text-4xl font-bold text-gray-900 mb-6">Sobre Mim</h2>
               <p className="text-lg text-gray-600 mb-6">
-                Sou um fotógrafo movido pela missão de transformar momentos em memórias eternas. Com mais de seis anos de experiência, dedico-me a criar imagens autênticas e cheias de significado, seja em ensaios fotográficos ou na fotografia de Shows e Espetáculos.
+                Sou um fotógrafo movido pela missão de transformar momentos em memórias eternas. Com mais de seis anos de experiência, dedico-me a criar imagens autênticas e cheias de significado, seja em ensaios fotográficos ou na fotografia de Performances.
               </p>
               <p className="text-lg text-gray-600 mb-8">
                 Minha abordagem vai além do registro: busco contar histórias, revelar emoções e capturar a essência única de cada pessoa, objeto ou situação. Acredito que uma boa fotografia não só documenta um instante, mas também evoca sentimentos e cria laços que permanecem no tempo.

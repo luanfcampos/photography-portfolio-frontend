@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Folder, 
   Edit, 
@@ -22,16 +23,19 @@ import {
   ChevronRight,
   LayoutGrid,
   List,
-  Move,
-  Settings
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react'
 
 function WorkManager({ refreshTrigger }) {
   const [works, setWorks] = useState([])
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [expandedWorks, setExpandedWorks] = useState(new Set())
-  const [viewMode, setViewMode] = useState('list') // 'list' ou 'grid'
+  const [viewMode, setViewMode] = useState('list')
+  const [deletingWork, setDeletingWork] = useState(null)
+  
   const [categories] = useState([
     { id: 1, name: 'Ensaios' },
     { id: 2, name: 'Shows e Espetáculos' },
@@ -40,13 +44,17 @@ function WorkManager({ refreshTrigger }) {
 
   const loadWorks = async () => {
     try {
+      setError(null)
       const response = await apiRequest(API_CONFIG.ENDPOINTS.WORKS)
       if (response.ok) {
         const worksData = await response.json()
         setWorks(worksData)
+      } else {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`)
       }
     } catch (error) {
       console.error('Erro ao carregar trabalhos:', error)
+      setError('Erro ao carregar trabalhos: ' + error.message)
     }
   }
 
@@ -56,21 +64,29 @@ function WorkManager({ refreshTrigger }) {
       if (response.ok) {
         const photosData = await response.json()
         setPhotos(photosData)
+      } else {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`)
       }
     } catch (error) {
       console.error('Erro ao carregar fotos:', error)
+      setError('Erro ao carregar fotos: ' + error.message)
     } finally {
       setLoading(false)
     }
   }
 
+  const refreshData = async () => {
+    setLoading(true)
+    await Promise.all([loadWorks(), loadPhotos()])
+  }
+
   useEffect(() => {
-    loadWorks()
-    loadPhotos()
+    refreshData()
   }, [refreshTrigger])
 
   const handleCreateWork = async (workData) => {
     try {
+      setError(null)
       const response = await apiRequest(API_CONFIG.ENDPOINTS.WORKS, {
         method: 'POST',
         body: JSON.stringify(workData)
@@ -79,16 +95,33 @@ function WorkManager({ refreshTrigger }) {
       if (response.ok) {
         await loadWorks()
       } else {
-        alert('Erro ao criar trabalho')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`Erro ${response.status}: ${errorData.message || response.statusText}`)
       }
     } catch (error) {
       console.error('Erro ao criar trabalho:', error)
-      alert('Erro de conexão')
+      setError('Erro ao criar trabalho: ' + error.message)
     }
   }
 
   const handleDeleteWork = async (workId) => {
-    if (!confirm('Tem certeza que deseja deletar este trabalho? As fotos serão mantidas mas ficarão sem trabalho associado.')) return
+    // Verificar se o trabalho existe na lista atual
+    const workExists = works.find(work => work.id === workId)
+    if (!workExists) {
+      setError('Trabalho não encontrado na lista atual. Atualizando dados...')
+      await refreshData()
+      return
+    }
+
+    const workTitle = workExists.title
+    const photosCount = getPhotosForWork(workId).length
+
+    if (!confirm(`Tem certeza que deseja deletar o trabalho "${workTitle}"? ${photosCount > 0 ? `As ${photosCount} fotos serão mantidas mas ficarão sem trabalho associado.` : ''}`)) {
+      return
+    }
+
+    setDeletingWork(workId)
+    setError(null)
 
     try {
       const response = await apiRequest(`${API_CONFIG.ENDPOINTS.WORKS}/${workId}`, {
@@ -96,33 +129,57 @@ function WorkManager({ refreshTrigger }) {
       })
 
       if (response.ok) {
-        setWorks(works.filter(work => work.id !== workId))
+        // Remover trabalho da lista local
+        setWorks(prevWorks => prevWorks.filter(work => work.id !== workId))
         // Recarregar fotos para atualizar work_id
         await loadPhotos()
+      } else if (response.status === 404) {
+        // Trabalho não encontrado no servidor
+        setError(`O trabalho "${workTitle}" não foi encontrado no servidor. Pode ter sido deletado por outro usuário.`)
+        // Remover da lista local já que não existe no servidor
+        setWorks(prevWorks => prevWorks.filter(work => work.id !== workId))
+        await loadPhotos()
       } else {
-        alert('Erro ao deletar trabalho')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`Erro ${response.status}: ${errorData.message || response.statusText}`)
       }
     } catch (error) {
-      console.error('Erro ao deletar trabalho:', error)
-      alert('Erro de conexão')
+      console.error('❌ Erro na requisição para ' + `${API_CONFIG.ENDPOINTS.WORKS}/${workId}:`, error)
+      
+      if (error.message.includes('404')) {
+        setError(`O trabalho "${workTitle}" não foi encontrado no servidor. Pode ter sido deletado anteriormente.`)
+        // Remover da lista local
+        setWorks(prevWorks => prevWorks.filter(work => work.id !== workId))
+        await loadPhotos()
+      } else if (error.message.includes('Network')) {
+        setError('Erro de conexão. Verifique sua internet e tente novamente.')
+      } else {
+        setError('Erro ao deletar trabalho: ' + error.message)
+      }
+    } finally {
+      setDeletingWork(null)
     }
   }
 
   const handleUpdatePhoto = async (photoData) => {
     try {
+      setError(null)
       const response = await apiRequest(`${API_CONFIG.ENDPOINTS.PHOTOS}/${photoData.id}`, {
         method: 'PUT',
         body: JSON.stringify(photoData)
       })
 
       if (response.ok) {
-        setPhotos(photos.map(photo => photo.id === photoData.id ? { ...photo, ...photoData } : photo))
+        setPhotos(prevPhotos => prevPhotos.map(photo => 
+          photo.id === photoData.id ? { ...photo, ...photoData } : photo
+        ))
       } else {
-        alert('Erro ao atualizar foto')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`Erro ${response.status}: ${errorData.message || response.statusText}`)
       }
     } catch (error) {
       console.error('Erro ao atualizar foto:', error)
-      alert('Erro de conexão')
+      setError('Erro ao atualizar foto: ' + error.message)
     }
   }
 
@@ -130,18 +187,28 @@ function WorkManager({ refreshTrigger }) {
     if (!confirm('Tem certeza que deseja deletar esta foto?')) return
 
     try {
+      setError(null)
       const response = await apiRequest(`${API_CONFIG.ENDPOINTS.PHOTOS}/${photoId}`, {
         method: 'DELETE'
       })
 
       if (response.ok) {
-        setPhotos(photos.filter(photo => photo.id !== photoId))
+        setPhotos(prevPhotos => prevPhotos.filter(photo => photo.id !== photoId))
+      } else if (response.status === 404) {
+        setError('Foto não encontrada no servidor. Pode ter sido deletada anteriormente.')
+        setPhotos(prevPhotos => prevPhotos.filter(photo => photo.id !== photoId))
       } else {
-        alert('Erro ao deletar foto')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`Erro ${response.status}: ${errorData.message || response.statusText}`)
       }
     } catch (error) {
       console.error('Erro ao deletar foto:', error)
-      alert('Erro de conexão')
+      if (error.message.includes('404')) {
+        setError('Foto não encontrada. Pode ter sido deletada anteriormente.')
+        setPhotos(prevPhotos => prevPhotos.filter(photo => photo.id !== photoId))
+      } else {
+        setError('Erro ao deletar foto: ' + error.message)
+      }
     }
   }
 
@@ -180,6 +247,24 @@ function WorkManager({ refreshTrigger }) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Exibir erros */}
+      {error && (
+        <Alert className="bg-red-900/50 border-red-600 text-red-100">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{error}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setError(null)}
+              className="ml-4 h-6 px-2 border-red-500 text-red-300 hover:bg-red-600"
+            >
+              Fechar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Criar Novo Trabalho */}
       <Card className="w-full bg-gray-800/80 backdrop-blur-sm border-gray-700">
         <CardHeader>
@@ -211,6 +296,15 @@ function WorkManager({ refreshTrigger }) {
             </div>
             
             <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshData}
+                disabled={loading}
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -260,6 +354,7 @@ function WorkManager({ refreshTrigger }) {
                   onUpdatePhoto={handleUpdatePhoto}
                   onDeletePhoto={handleDeletePhoto}
                   viewMode={viewMode}
+                  isDeleting={deletingWork === work.id}
                 />
               ))}
             </div>
@@ -305,7 +400,8 @@ function WorkWithPhotos({
   onDeleteWork, 
   onUpdatePhoto, 
   onDeletePhoto,
-  viewMode 
+  viewMode,
+  isDeleting = false
 }) {
   return (
     <Card className="bg-gray-700/50 backdrop-blur-sm border border-gray-600">
@@ -365,9 +461,14 @@ function WorkWithPhotos({
                     e.stopPropagation()
                     onDeleteWork(work.id)
                   }}
-                  className="h-8 w-8 p-0 border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                  disabled={isDeleting}
+                  className="h-8 w-8 p-0 border-red-600 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-50"
                 >
-                  <Trash2 className="h-3 w-3" />
+                  {isDeleting ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -529,7 +630,6 @@ function PhotoCard({
   )
 }
 
-// Componentes CreateWorkForm e EditPhotoForm permanecem os mesmos...
 function CreateWorkForm({ categories, onSubmit }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
