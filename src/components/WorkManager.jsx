@@ -35,12 +35,29 @@ function WorkManager({ refreshTrigger }) {
   const [expandedWorks, setExpandedWorks] = useState(new Set())
   const [viewMode, setViewMode] = useState('list')
   const [deletingWork, setDeletingWork] = useState(null)
-  
-  const [categories] = useState([
-    { id: 1, name: 'Ensaios' },
-    { id: 2, name: 'Shows e Espetáculos' },
-    { id: 3, name: 'Eventos' }
-  ])
+  const [categories, setCategories] = useState([])
+
+  const loadCategories = async () => {
+    try {
+      setError(null)
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.CATEGORIES)
+      if (response.ok) {
+        const categoriesData = await response.json()
+        setCategories(categoriesData)
+      } else {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error)
+      setError('Erro ao carregar categorias: ' + error.message)
+      // Fallback para categorias padrão se não conseguir carregar
+      setCategories([
+        { id: 1, name: 'Ensaios' },
+        { id: 2, name: 'Shows e Espetáculos' },
+        { id: 3, name: 'Eventos' }
+      ])
+    }
+  }
 
   const loadWorks = async () => {
     try {
@@ -77,7 +94,7 @@ function WorkManager({ refreshTrigger }) {
 
   const refreshData = async () => {
     setLoading(true)
-    await Promise.all([loadWorks(), loadPhotos()])
+    await Promise.all([loadCategories(), loadWorks(), loadPhotos()])
   }
 
   useEffect(() => {
@@ -684,6 +701,7 @@ function CreateWorkForm({ categories, onSubmit }) {
               <SelectValue placeholder="Selecione uma categoria" />
             </SelectTrigger>
             <SelectContent className="bg-gray-700 border-gray-600">
+              <SelectItem value="" className="text-white hover:bg-gray-600">Sem categoria</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-600">
                   {category.name}
